@@ -1,0 +1,6 @@
+[submodule "librustuv/build/libuv"]
+	path = librustuv/build/libuv
+	url = https://github.com/rust-lang/libuv
+[submodule "librustuv/build/gyp"]
+	path = librustuv/build/gyp
+	url = https://github.com/rust-lang/gyp
