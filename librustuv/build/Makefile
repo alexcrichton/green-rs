@@ -6,7 +6,7 @@ else
 CFLAGS += -m64 -fPIC
 endif
 
-export PYTHONPATH := $(PYTHONPATH):$(CURDIR)gyp
+export PYTHONPATH := $(PYTHONPATH):$(CURDIR)/gyp/pylib
 
 ifneq ($(findstring mingw,$(TARGET)),)
   LIBUV_OSTYPE := win

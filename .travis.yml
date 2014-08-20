@@ -1,0 +1,9 @@
+language: rust
+script:
+- cd $LIB
+- cargo build
+- cargo test
+- cargo doc
+env:
+- LIB=libgreen
+- LIB=librustuv
