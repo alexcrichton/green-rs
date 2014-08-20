@@ -465,6 +465,7 @@ mod test {
     use libc::c_int;
     use libc::{O_CREAT, O_RDWR, O_RDONLY, S_IWUSR, S_IRUSR};
     use std::str;
+    use std::io::TempDir;
     use super::FsRequest;
     use super::super::Loop;
     use super::super::local_loop;
@@ -476,7 +477,8 @@ mod test {
         let create_flags = O_RDWR | O_CREAT;
         let read_flags = O_RDONLY;
         let mode = S_IWUSR | S_IRUSR;
-        let path_str = "./tmp/file_full_simple_sync.txt";
+        let td = TempDir::new("rustuv").unwrap();
+        let path_str = td.path().join("file_full_simple_sync.txt");
 
         {
             // open/create
@@ -516,7 +518,8 @@ mod test {
 
     #[test]
     fn file_test_stat() {
-        let path = &"./tmp/file_test_stat_simple".to_c_str();
+        let td = TempDir::new("rustuv").unwrap();
+        let path = &td.path().join("file_test_stat_simple").to_c_str();
         let create_flags = (O_RDWR | O_CREAT) as int;
         let mode = (S_IWUSR | S_IRUSR) as int;
 
@@ -544,7 +547,8 @@ mod test {
 
     #[test]
     fn file_test_mk_rm_dir() {
-        let path = &"./tmp/mk_rm_dir".to_c_str();
+        let td = TempDir::new("rustuv").unwrap();
+        let path = &td.path().join("mk_rm_dir").to_c_str();
         let mode = S_IWUSR | S_IRUSR;
 
         let result = FsRequest::mkdir(l(), path, mode as c_int);
@@ -559,7 +563,8 @@ mod test {
 
     #[test]
     fn file_test_mkdir_chokes_on_double_create() {
-        let path = &"./tmp/double_create_dir".to_c_str();
+        let td = TempDir::new("rustuv").unwrap();
+        let path = &td.path().join("double_create_dir").to_c_str();
         let mode = S_IWUSR | S_IRUSR;
 
         let result = FsRequest::stat(l(), path);
@@ -574,7 +579,8 @@ mod test {
 
     #[test]
     fn file_test_rmdir_chokes_on_nonexistant_path() {
-        let path = &"./tmp/never_existed_dir".to_c_str();
+        let td = TempDir::new("rustuv").unwrap();
+        let path = &td.path().join("never_existed_dir").to_c_str();
         let result = FsRequest::rmdir(l(), path);
         assert!(result.is_err());
     }

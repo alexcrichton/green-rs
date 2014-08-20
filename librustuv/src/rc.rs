@@ -16,8 +16,8 @@
 /// the same underlying uv object, hence Rc is not used and this simple counter
 /// should suffice.
 
-use alloc::arc::Arc;
 use std::cell::UnsafeCell;
+use std::sync::Arc;
 
 pub struct Refcount {
     rc: Arc<UnsafeCell<uint>>,

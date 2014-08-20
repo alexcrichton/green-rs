@@ -8,10 +8,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use alloc::arc::Arc;
 use std::mem;
 use std::rt::exclusive::Exclusive;
 use std::rt::rtio::{Callback, RemoteCallback};
+use std::sync::Arc;
 
 use uvll;
 use super::{Loop, UvHandle};

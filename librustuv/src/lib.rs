@@ -40,9 +40,7 @@ via `close` and `delete` methods.
 #![crate_type = "rlib"]
 #![crate_type = "dylib"]
 #![doc(html_logo_url = "http://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png",
-       html_favicon_url = "http://www.rust-lang.org/favicon.ico",
-       html_root_url = "http://doc.rust-lang.org/master/",
-       html_playground_url = "http://play.rust-lang.org/")]
+       html_favicon_url = "http://www.rust-lang.org/favicon.ico")]
 
 #![feature(macro_rules, unsafe_destructor)]
 #![deny(unused_result, unused_must_use)]
@@ -53,7 +51,6 @@ via `close` and `delete` methods.
 #[cfg(test)] extern crate green;
 #[cfg(test)] extern crate debug;
 extern crate libc;
-extern crate alloc;
 
 use libc::{c_int, c_void};
 use std::fmt;
