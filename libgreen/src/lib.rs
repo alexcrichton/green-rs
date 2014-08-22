@@ -221,13 +221,11 @@
 #![allow(visible_private_types, deprecated)]
 
 #[cfg(test)] #[phase(plugin, link)] extern crate log;
-#[cfg(test)] extern crate rustuv;
 extern crate libc;
 extern crate alloc;
 
 use std::mem::replace;
 use std::os;
-use std::rt::rtio;
 use std::rt::task::TaskOpts;
 use std::rt::thread::Thread;
 use std::rt;
@@ -299,7 +297,7 @@ macro_rules! green_start( ($f:ident) => (
 /// The return value is used as the process return code. 0 on success, 101 on
 /// error.
 pub fn start(argc: int, argv: *const *const u8,
-             event_loop_factory: fn() -> Box<rtio::EventLoop + Send>,
+             event_loop_factory: fn() -> Box<EventLoop + Send>,
              main: proc():Send) -> int {
     rt::init(argc, argv);
     let mut main = Some(main);
@@ -320,7 +318,7 @@ pub fn start(argc: int, argv: *const *const u8,
 ///
 /// This function will not return until all schedulers in the associated pool
 /// have returned.
-pub fn run(event_loop_factory: fn() -> Box<rtio::EventLoop + Send>,
+pub fn run(event_loop_factory: fn() -> Box<EventLoop + Send>,
            main: proc():Send) -> int {
     // Create a scheduler pool and spawn the main task into this pool. We will
     // get notified over a channel when the main task exits.
@@ -351,7 +349,7 @@ pub struct PoolConfig {
     pub threads: uint,
     /// A factory function used to create new event loops. If this is not
     /// specified then the default event loop factory is used.
-    pub event_loop_factory: fn() -> Box<rtio::EventLoop + Send>,
+    pub event_loop_factory: fn() -> Box<EventLoop + Send>,
 }
 
 impl PoolConfig {
@@ -376,7 +374,7 @@ pub struct SchedPool {
     stack_pool: StackPool,
     deque_pool: deque::BufferPool<Box<task::GreenTask>>,
     sleepers: SleeperList,
-    factory: fn() -> Box<rtio::EventLoop + Send>,
+    factory: fn() -> Box<EventLoop + Send>,
     task_state: TaskState,
     tasks_done: Receiver<()>,
 }
@@ -610,6 +608,29 @@ impl<S: Spawner> GreenTaskBuilder for TaskBuilder<S> {
                         -> TaskBuilder<GreenSpawner<'a>> {
         self.spawner(GreenSpawner {pool: pool, handle: Some(handle)})
     }
+}
+
+pub trait EventLoop {
+    fn run(&mut self);
+    fn callback(&mut self, arg: proc(): Send);
+    fn pausable_idle_callback(&mut self, cb: Box<Callback + Send>)
+                              -> Box<PausableIdleCallback + Send>;
+    fn remote_callback(&mut self, Box<Callback + Send>)
+                       -> Box<RemoteCallback + Send>;
+    fn has_active_io(&self) -> bool;
+}
+
+pub trait PausableIdleCallback {
+    fn pause(&mut self);
+    fn resume(&mut self);
+}
+
+pub trait RemoteCallback {
+    fn fire(&mut self);
+}
+
+pub trait Callback {
+    fn call(&mut self);
 }
 
 #[cfg(test)]

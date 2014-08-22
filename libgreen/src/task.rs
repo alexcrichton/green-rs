@@ -470,10 +470,11 @@ impl Runtime for GreenTask {
 
     // Local I/O is provided by the scheduler's event loop
     fn local_io<'a>(&'a mut self) -> Option<rtio::LocalIo<'a>> {
-        match self.sched.get_mut_ref().event_loop.io() {
-            Some(io) => Some(rtio::LocalIo::new(io)),
-            None => None,
-        }
+        None
+        // match self.sched.get_mut_ref().event_loop.io() {
+        //     Some(io) => Some(rtio::LocalIo::new(io)),
+        //     None => None,
+        // }
     }
 
     fn stack_bounds(&self) -> (uint, uint) {
@@ -504,7 +505,7 @@ mod tests {
     fn spawn_opts(opts: TaskOpts, f: proc():Send) {
         let mut pool = SchedPool::new(PoolConfig {
             threads: 1,
-            event_loop_factory: ::rustuv::event_loop,
+            event_loop_factory: ::basic::event_loop,
         });
         pool.spawn(opts, f);
         pool.shutdown();

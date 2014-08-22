@@ -17,10 +17,10 @@
 
 use std::mem;
 use std::rt::exclusive::Exclusive;
-use std::rt::rtio::{EventLoop, IoFactory, RemoteCallback};
-use std::rt::rtio::{PausableIdleCallback, Callback};
 use std::sync::Arc;
 use std::sync::atomic;
+
+use {EventLoop, RemoteCallback, PausableIdleCallback, Callback};
 
 /// This is the only exported function from this module.
 pub fn event_loop() -> Box<EventLoop + Send> {
@@ -149,8 +149,6 @@ impl EventLoop for BasicLoop {
         box BasicRemote::new(self.messages.clone(), id) as
             Box<RemoteCallback + Send>
     }
-
-    fn io<'a>(&'a mut self) -> Option<&'a mut IoFactory> { None }
 
     fn has_active_io(&self) -> bool { false }
 }

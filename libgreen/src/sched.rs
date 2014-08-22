@@ -11,7 +11,6 @@
 use std::mem;
 use std::rt::local::Local;
 use std::rt::mutex::NativeMutex;
-use std::rt::rtio::{RemoteCallback, PausableIdleCallback, Callback, EventLoop};
 use std::rt::task::BlockedTask;
 use std::rt::task::Task;
 use std::sync::deque;
@@ -19,7 +18,7 @@ use std::raw;
 
 use std::rand::{XorShiftRng, Rng, Rand};
 
-use TaskState;
+use {RemoteCallback, PausableIdleCallback, Callback, EventLoop, TaskState};
 use context::Context;
 use coroutine::Coroutine;
 use sleeper_list::SleeperList;
@@ -1024,12 +1023,9 @@ fn new_sched_rng() -> XorShiftRng {
 
 #[cfg(test)]
 mod test {
-    use rustuv;
-
     use std::rt::task::TaskOpts;
     use std::rt::task::Task;
     use std::rt::local::Local;
-    use std::time::Duration;
 
     use {TaskState, PoolConfig, SchedPool};
     use basic;
@@ -1266,37 +1262,6 @@ mod test {
             normal_thread.join();
             special_thread.join();
         }).join();
-    }
-
-    //#[test]
-    //fn test_stress_schedule_task_states() {
-    //    if util::limit_thread_creation_due_to_osx_and_valgrind() { return; }
-    //    let n = stress_factor() * 120;
-    //    for _ in range(0, n as int) {
-    //        test_schedule_home_states();
-    //    }
-    //}
-
-    #[test]
-    fn test_io_callback() {
-        use std::io::timer;
-
-        let mut pool = SchedPool::new(PoolConfig {
-            threads: 2,
-            event_loop_factory: rustuv::event_loop,
-        });
-
-        // This is a regression test that when there are no schedulable tasks in
-        // the work queue, but we are performing I/O, that once we do put
-        // something in the work queue again the scheduler picks it up and
-        // doesn't exit before emptying the work queue
-        pool.spawn(TaskOpts::new(), proc() {
-            spawn(proc() {
-                timer::sleep(Duration::milliseconds(10));
-            });
-        });
-
-        pool.shutdown();
     }
 
     #[test]
