@@ -15,12 +15,12 @@
 //! This implementation is also used as the fallback implementation of an event
 //! loop if no other one is provided (and M:N scheduling is desired).
 
-use alloc::arc::Arc;
-use std::sync::atomic;
 use std::mem;
+use std::rt::exclusive::Exclusive;
 use std::rt::rtio::{EventLoop, IoFactory, RemoteCallback};
 use std::rt::rtio::{PausableIdleCallback, Callback};
-use std::rt::exclusive::Exclusive;
+use std::sync::Arc;
+use std::sync::atomic;
 
 /// This is the only exported function from this module.
 pub fn event_loop() -> Box<EventLoop + Send> {

@@ -8,9 +8,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use alloc::arc::Arc;
-use std::sync::mpsc_queue as mpsc;
 use std::kinds::marker;
+use std::sync::Arc;
+use std::sync::mpsc_queue as mpsc;
 
 pub enum PopResult<T> {
     Inconsistent,

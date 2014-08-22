@@ -225,13 +225,13 @@
 extern crate libc;
 extern crate alloc;
 
-use alloc::arc::Arc;
 use std::mem::replace;
 use std::os;
 use std::rt::rtio;
-use std::rt::thread::Thread;
 use std::rt::task::TaskOpts;
+use std::rt::thread::Thread;
 use std::rt;
+use std::sync::Arc;
 use std::sync::atomic::{SeqCst, AtomicUint, INIT_ATOMIC_UINT};
 use std::sync::deque;
 use std::task::{TaskBuilder, Spawner};
