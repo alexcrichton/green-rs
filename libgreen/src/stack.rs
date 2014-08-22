@@ -18,7 +18,6 @@ use libc;
 pub struct Stack {
     buf: Option<MemoryMap>,
     min_size: uint,
-    valgrind_id: libc::c_uint,
 }
 
 // Try to use MAP_STACK on platforms that support it (it's what we're doing
@@ -60,17 +59,10 @@ impl Stack {
                   stack.data(), errno());
         }
 
-        let mut stk = Stack {
+        Stack {
             buf: Some(stack),
             min_size: size,
-            valgrind_id: 0
-        };
-
-        // FIXME: Using the FFI to call a C macro. Slow
-        stk.valgrind_id = unsafe {
-            rust_valgrind_stack_register(stk.start(), stk.end())
-        };
-        return stk;
+        }
     }
 
     /// Create a 0-length stack which starts (and ends) at 0.
@@ -78,7 +70,6 @@ impl Stack {
         Stack {
             buf: None,
             min_size: 0,
-            valgrind_id: 0
         }
     }
 
@@ -117,15 +108,6 @@ fn protect_last_page(stack: &MemoryMap) -> bool {
         libc::VirtualProtect(last_page, page_size() as libc::SIZE_T,
                              libc::PAGE_NOACCESS,
                              &mut old_prot as libc::LPDWORD) != 0
-    }
-}
-
-impl Drop for Stack {
-    fn drop(&mut self) {
-        unsafe {
-            // FIXME: Using the FFI to call a C macro. Slow
-            rust_valgrind_stack_deregister(self.valgrind_id);
-        }
     }
 }
 
@@ -173,12 +155,6 @@ fn max_cached_stacks() -> uint {
     return amt;
 }
 
-extern {
-    fn rust_valgrind_stack_register(start: *const libc::uintptr_t,
-                                    end: *const libc::uintptr_t) -> libc::c_uint;
-    fn rust_valgrind_stack_deregister(id: libc::c_uint);
-}
-
 #[cfg(test)]
 mod tests {
     use super::StackPool;
@@ -199,12 +175,10 @@ mod tests {
     #[test]
     fn stack_pool_caches_exact() {
         let mut p = StackPool::new();
-        let mut s = p.take_stack(10);
-        s.valgrind_id = 100;
+        let s = p.take_stack(10);
         p.give_stack(s);
 
         let s = p.take_stack(10);
         assert_eq!(s.min_size, 10);
-        assert_eq!(s.valgrind_id, 100);
     }
 }
