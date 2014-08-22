@@ -12,12 +12,14 @@
 
 use std::c_str::CString;
 use std::mem;
+use std::rt::rtio;
+use std::rt::rtio::{ProcessConfig, IoFactory, IoResult};
 use libc::c_int;
 use libc::{O_CREAT, O_APPEND, O_TRUNC, O_RDWR, O_RDONLY, O_WRONLY, S_IRUSR,
                 S_IWUSR};
 use libc;
-use std::rt::rtio;
-use std::rt::rtio::{ProcessConfig, IoFactory, EventLoop, IoResult};
+use green;
+use green::EventLoop;
 
 #[cfg(test)] use std::rt::thread::Thread;
 
@@ -84,21 +86,16 @@ impl EventLoop for UvEventLoop {
         IdleWatcher::onetime(&mut self.uvio.loop_, f);
     }
 
-    fn pausable_idle_callback(&mut self, cb: Box<rtio::Callback + Send>)
-                              -> Box<rtio::PausableIdleCallback + Send> {
+    fn pausable_idle_callback(&mut self, cb: Box<green::Callback + Send>)
+                              -> Box<green::PausableIdleCallback + Send> {
         IdleWatcher::new(&mut self.uvio.loop_, cb)
-                         as Box<rtio::PausableIdleCallback + Send>
+                         as Box<green::PausableIdleCallback + Send>
     }
 
-    fn remote_callback(&mut self, f: Box<rtio::Callback + Send>)
-                       -> Box<rtio::RemoteCallback + Send> {
+    fn remote_callback(&mut self, f: Box<green::Callback + Send>)
+                       -> Box<green::RemoteCallback + Send> {
         box AsyncWatcher::new(&mut self.uvio.loop_, f) as
-            Box<rtio::RemoteCallback + Send>
-    }
-
-    fn io<'a>(&'a mut self) -> Option<&'a mut rtio::IoFactory> {
-        let factory = &mut self.uvio as &mut rtio::IoFactory;
-        Some(factory)
+            Box<green::RemoteCallback + Send>
     }
 
     fn has_active_io(&self) -> bool {

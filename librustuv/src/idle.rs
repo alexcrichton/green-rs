@@ -13,7 +13,7 @@ use std::mem;
 
 use uvll;
 use super::{Loop, UvHandle};
-use std::rt::rtio::{Callback, PausableIdleCallback};
+use green::{Callback, PausableIdleCallback};
 
 pub struct IdleWatcher {
     handle: *mut uvll::uv_idle_t,
@@ -96,9 +96,9 @@ mod test {
     use std::mem;
     use std::cell::RefCell;
     use std::rc::Rc;
-    use std::rt::rtio::{Callback, PausableIdleCallback};
     use std::rt::task::{BlockedTask, Task};
     use std::rt::local::Local;
+    use green::{Callback, PausableIdleCallback};
     use super::IdleWatcher;
     use super::super::local_loop;
 

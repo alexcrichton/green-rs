@@ -4,6 +4,6 @@ version = "0.0.1"
 authors = ["The Rust Project Developers"]
 build = "make -C build"
 
-[dev-dependencies.green]
+[dependencies.green]
 path = "../libgreen"
 

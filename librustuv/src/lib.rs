@@ -48,8 +48,8 @@ via `close` and `delete` methods.
 
 #![reexport_test_harness_main = "test_main"]
 
-#[cfg(test)] extern crate green;
 #[cfg(test)] extern crate debug;
+extern crate green;
 extern crate libc;
 
 use libc::{c_int, c_void};
@@ -58,7 +58,6 @@ use std::mem;
 use std::ptr;
 use std::string;
 use std::rt::local::Local;
-use std::rt::rtio;
 use std::rt::rtio::{IoResult, IoError};
 use std::rt::task::{BlockedTask, Task};
 use std::task;
@@ -123,8 +122,8 @@ pub mod stream;
 ///     // this code is running inside of a green task powered by libuv
 /// }
 /// ```
-pub fn event_loop() -> Box<rtio::EventLoop + Send> {
-    box uvio::UvEventLoop::new() as Box<rtio::EventLoop + Send>
+pub fn event_loop() -> Box<green::EventLoop + Send> {
+    box uvio::UvEventLoop::new() as Box<green::EventLoop + Send>
 }
 
 /// A type that wraps a uv handle

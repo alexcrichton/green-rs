@@ -10,8 +10,8 @@
 
 use std::mem;
 use std::rt::exclusive::Exclusive;
-use std::rt::rtio::{Callback, RemoteCallback};
 use std::sync::Arc;
+use green::{Callback, RemoteCallback};
 
 use uvll;
 use super::{Loop, UvHandle};
@@ -119,9 +119,9 @@ impl Drop for AsyncWatcher {
 
 #[cfg(test)]
 mod test_remote {
-    use std::rt::rtio::{Callback, RemoteCallback};
     use std::rt::thread::Thread;
 
+    use green::{Callback, RemoteCallback};
     use super::AsyncWatcher;
     use super::super::local_loop;
 
