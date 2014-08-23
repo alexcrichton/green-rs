@@ -30,9 +30,8 @@
 #![allow(non_camel_case_types)] // C types
 
 use libc::{size_t, c_int, c_uint, c_void, c_char, c_double};
-use libc::{ssize_t, sockaddr, free, addrinfo};
+use libc::{ssize_t, sockaddr, addrinfo};
 use libc;
-use std::rt::libc_heap::malloc_raw;
 
 #[cfg(test)]
 use libc::uintptr_t;
@@ -65,6 +64,7 @@ pub mod errors {
     pub static EADDRINUSE: c_int = -4091;
     pub static EPERM: c_int = -4048;
 }
+
 #[cfg(not(windows))]
 pub mod errors {
     use libc;
@@ -159,27 +159,32 @@ pub struct uv_stdio_container_t {
     stream: *mut uv_stream_t,
 }
 
-pub type uv_handle_t = c_void;
-pub type uv_req_t = c_void;
-pub type uv_loop_t = c_void;
-pub type uv_idle_t = c_void;
-pub type uv_tcp_t = c_void;
-pub type uv_udp_t = c_void;
-pub type uv_poll_t = c_void;
-pub type uv_connect_t = c_void;
-pub type uv_connection_t = c_void;
-pub type uv_write_t = c_void;
-pub type uv_async_t = c_void;
-pub type uv_timer_t = c_void;
-pub type uv_stream_t = c_void;
-pub type uv_fs_t = c_void;
-pub type uv_udp_send_t = c_void;
-pub type uv_getaddrinfo_t = c_void;
-pub type uv_process_t = c_void;
-pub type uv_pipe_t = c_void;
-pub type uv_tty_t = c_void;
-pub type uv_signal_t = c_void;
-pub type uv_shutdown_t = c_void;
+// handles
+pub enum uv_async_t {}
+pub enum uv_handle_t {}
+pub enum uv_idle_t {}
+pub enum uv_pipe_t {}
+pub enum uv_poll_t {}
+pub enum uv_process_t {}
+pub enum uv_signal_t {}
+pub enum uv_stream_t {}
+pub enum uv_tcp_t {}
+pub enum uv_timer_t {}
+pub enum uv_tty_t {}
+pub enum uv_udp_send_t {}
+pub enum uv_udp_t {}
+
+// reqs
+pub enum uv_connect_t {}
+pub enum uv_fs_t {}
+pub enum uv_getaddrinfo_t {}
+pub enum uv_req_t {}
+pub enum uv_shutdown_t {}
+pub enum uv_write_t {}
+
+// misc
+pub enum uv_loop_t {}
+pub enum uv_connection_t {}
 
 #[repr(C)]
 pub struct uv_timespec_t {
@@ -355,25 +360,15 @@ pub enum uv_membership {
     UV_JOIN_GROUP
 }
 
-pub unsafe fn malloc_handle(handle: uv_handle_type) -> *mut c_void {
-    assert!(handle != UV_UNKNOWN_HANDLE && handle != UV_HANDLE_TYPE_MAX);
-    let size = uv_handle_size(handle);
-    malloc_raw(size as uint) as *mut c_void
-}
-
-pub unsafe fn free_handle(v: *mut c_void) {
-    free(v as *mut c_void)
-}
-
-pub unsafe fn malloc_req(req: uv_req_type) -> *mut c_void {
-    assert!(req != UV_UNKNOWN_REQ && req != UV_REQ_TYPE_MAX);
-    let size = uv_req_size(req);
-    malloc_raw(size as uint) as *mut c_void
-}
-
-pub unsafe fn free_req(v: *mut c_void) {
-    free(v as *mut c_void)
-}
+// pub unsafe fn malloc_req(req: uv_req_type) -> *mut c_void {
+//     assert!(req != UV_UNKNOWN_REQ && req != UV_REQ_TYPE_MAX);
+//     let size = uv_req_size(req);
+//     malloc_raw(size as uint) as *mut c_void
+// }
+//
+// pub unsafe fn free_req(v: *mut c_void) {
+//     free(v as *mut c_void)
+// }
 
 #[test]
 fn handle_sanity_check() {
@@ -389,164 +384,49 @@ fn request_sanity_check() {
     }
 }
 
-// FIXME Event loops ignore SIGPIPE by default.
-pub unsafe fn loop_new() -> *mut c_void {
-    return rust_uv_loop_new();
-}
-
-pub unsafe fn uv_write(req: *mut uv_write_t,
-                       stream: *mut uv_stream_t,
-                       buf_in: &[uv_buf_t],
-                       cb: uv_write_cb) -> c_int {
-    extern {
-        fn uv_write(req: *mut uv_write_t, stream: *mut uv_stream_t,
-                    buf_in: *const uv_buf_t, buf_cnt: c_int,
-                    cb: uv_write_cb) -> c_int;
-    }
-
-    let buf_ptr = buf_in.as_ptr();
-    let buf_cnt = buf_in.len() as i32;
-    return uv_write(req, stream, buf_ptr, buf_cnt, cb);
-}
-
-pub unsafe fn uv_udp_send(req: *mut uv_udp_send_t,
-                          handle: *mut uv_udp_t,
-                          buf_in: &[uv_buf_t],
-                          addr: *const sockaddr,
-                          cb: uv_udp_send_cb) -> c_int {
-    extern {
-        fn uv_udp_send(req: *mut uv_write_t, stream: *mut uv_stream_t,
-                       buf_in: *const uv_buf_t, buf_cnt: c_int,
-                       addr: *const sockaddr,
-                       cb: uv_udp_send_cb) -> c_int;
-    }
-
-    let buf_ptr = buf_in.as_ptr();
-    let buf_cnt = buf_in.len() as i32;
-    return uv_udp_send(req, handle, buf_ptr, buf_cnt, addr, cb);
-}
-
-pub unsafe fn get_udp_handle_from_send_req(send_req: *mut uv_udp_send_t) -> *mut uv_udp_t {
-    return rust_uv_get_udp_handle_from_send_req(send_req);
-}
-
-pub unsafe fn process_pid(p: *mut uv_process_t) -> c_int {
-
-    return rust_uv_process_pid(p);
-}
-
-pub unsafe fn set_stdio_container_flags(c: *mut uv_stdio_container_t,
-                                        flags: libc::c_int) {
-
-    rust_set_stdio_container_flags(c, flags);
-}
-
-pub unsafe fn set_stdio_container_fd(c: *mut uv_stdio_container_t,
-                                     fd: libc::c_int) {
-
-    rust_set_stdio_container_fd(c, fd);
-}
-
-pub unsafe fn set_stdio_container_stream(c: *mut uv_stdio_container_t,
-                                         stream: *mut uv_stream_t) {
-    rust_set_stdio_container_stream(c, stream);
-}
-
-// data access helpers
-pub unsafe fn get_result_from_fs_req(req: *mut uv_fs_t) -> ssize_t {
-    rust_uv_get_result_from_fs_req(req)
-}
-pub unsafe fn get_ptr_from_fs_req(req: *mut uv_fs_t) -> *mut libc::c_void {
-    rust_uv_get_ptr_from_fs_req(req)
-}
-pub unsafe fn get_path_from_fs_req(req: *mut uv_fs_t) -> *mut c_char {
-    rust_uv_get_path_from_fs_req(req)
-}
-pub unsafe fn get_loop_from_fs_req(req: *mut uv_fs_t) -> *mut uv_loop_t {
-    rust_uv_get_loop_from_fs_req(req)
-}
-pub unsafe fn get_loop_from_getaddrinfo_req(req: *mut uv_getaddrinfo_t) -> *mut uv_loop_t {
-    rust_uv_get_loop_from_getaddrinfo_req(req)
-}
-pub unsafe fn get_loop_for_uv_handle<T>(handle: *mut T) -> *mut c_void {
-    return rust_uv_get_loop_for_uv_handle(handle as *mut c_void);
-}
-pub unsafe fn get_stream_handle_from_connect_req(connect: *mut uv_connect_t) -> *mut uv_stream_t {
-    return rust_uv_get_stream_handle_from_connect_req(connect);
-}
-pub unsafe fn get_stream_handle_from_write_req(write_req: *mut uv_write_t) -> *mut uv_stream_t {
-    return rust_uv_get_stream_handle_from_write_req(write_req);
-}
-pub unsafe fn get_data_for_uv_loop(loop_ptr: *mut c_void) -> *mut c_void {
-    rust_uv_get_data_for_uv_loop(loop_ptr)
-}
-pub unsafe fn set_data_for_uv_loop(loop_ptr: *mut c_void, data: *mut c_void) {
-    rust_uv_set_data_for_uv_loop(loop_ptr, data);
-}
-pub unsafe fn get_data_for_uv_handle<T>(handle: *mut T) -> *mut c_void {
-    return rust_uv_get_data_for_uv_handle(handle as *mut c_void);
-}
-pub unsafe fn set_data_for_uv_handle<T, U>(handle: *mut T, data: *mut U) {
-    rust_uv_set_data_for_uv_handle(handle as *mut c_void, data as *mut c_void);
-}
-pub unsafe fn get_data_for_req<T>(req: *mut T) -> *mut c_void {
-    return rust_uv_get_data_for_req(req as *mut c_void);
-}
-pub unsafe fn set_data_for_req<T, U>(req: *mut T, data: *mut U) {
-    rust_uv_set_data_for_req(req as *mut c_void, data as *mut c_void);
-}
-pub unsafe fn populate_stat(req_in: *mut uv_fs_t, stat_out: *mut uv_stat_t) {
-    rust_uv_populate_uv_stat(req_in, stat_out)
-}
-pub unsafe fn guess_handle(handle: c_int) -> c_int {
-    rust_uv_guess_handle(handle)
-}
-
-
-// uv_support is the result of compiling rust_uv.cpp
-//
-// Note that this is in a cfg'd block so it doesn't get linked during testing.
-// There's a bit of a conundrum when testing in that we're actually assuming
-// that the tests are running in a uv loop, but they were created from the
-// statically linked uv to the original rustuv crate. When we create the test
-// executable, on some platforms if we re-link against uv, it actually creates
-// second copies of everything. We obviously don't want this, so instead of
-// dying horribly during testing, we allow all of the test rustuv's references
-// to get resolved to the original rustuv crate.
+// uv_support is the result of compiling rust_uv.c
 #[link(name = "uv_support", kind = "static")]
 #[link(name = "uv", kind = "static")]
-extern {}
-
 extern {
-    fn rust_uv_loop_new() -> *mut c_void;
+    pub fn uv_loop_size() -> size_t;
+    pub fn uv_loop_init(l: *mut uv_loop_t) -> c_int;
+    pub fn uv_loop_close(l: *mut uv_loop_t) -> c_int;
 
     #[cfg(test)]
     fn rust_uv_handle_type_max() -> uintptr_t;
     #[cfg(test)]
     fn rust_uv_req_type_max() -> uintptr_t;
-    fn rust_uv_get_udp_handle_from_send_req(req: *mut uv_udp_send_t) -> *mut uv_udp_t;
+    pub fn rust_uv_get_udp_handle_from_send_req(req: *mut uv_udp_send_t)
+                                                -> *mut uv_udp_t;
 
-    fn rust_uv_populate_uv_stat(req_in: *mut uv_fs_t, stat_out: *mut uv_stat_t);
-    fn rust_uv_get_result_from_fs_req(req: *mut uv_fs_t) -> ssize_t;
-    fn rust_uv_get_ptr_from_fs_req(req: *mut uv_fs_t) -> *mut libc::c_void;
-    fn rust_uv_get_path_from_fs_req(req: *mut uv_fs_t) -> *mut c_char;
-    fn rust_uv_get_loop_from_fs_req(req: *mut uv_fs_t) -> *mut uv_loop_t;
-    fn rust_uv_get_loop_from_getaddrinfo_req(req: *mut uv_fs_t) -> *mut uv_loop_t;
-    fn rust_uv_get_stream_handle_from_connect_req(req: *mut uv_connect_t) -> *mut uv_stream_t;
-    fn rust_uv_get_stream_handle_from_write_req(req: *mut uv_write_t) -> *mut uv_stream_t;
-    fn rust_uv_get_loop_for_uv_handle(handle: *mut c_void) -> *mut c_void;
-    fn rust_uv_get_data_for_uv_loop(loop_ptr: *mut c_void) -> *mut c_void;
-    fn rust_uv_set_data_for_uv_loop(loop_ptr: *mut c_void, data: *mut c_void);
-    fn rust_uv_get_data_for_uv_handle(handle: *mut c_void) -> *mut c_void;
-    fn rust_uv_set_data_for_uv_handle(handle: *mut c_void, data: *mut c_void);
-    fn rust_uv_get_data_for_req(req: *mut c_void) -> *mut c_void;
-    fn rust_uv_set_data_for_req(req: *mut c_void, data: *mut c_void);
-    fn rust_set_stdio_container_flags(c: *mut uv_stdio_container_t, flags: c_int);
-    fn rust_set_stdio_container_fd(c: *mut uv_stdio_container_t, fd: c_int);
-    fn rust_set_stdio_container_stream(c: *mut uv_stdio_container_t,
-                                       stream: *mut uv_stream_t);
-    fn rust_uv_process_pid(p: *mut uv_process_t) -> c_int;
-    fn rust_uv_guess_handle(fd: c_int) -> c_int;
+    pub fn rust_uv_populate_uv_stat(req_in: *mut uv_fs_t,
+                                    stat_out: *mut uv_stat_t);
+    pub fn rust_uv_get_result_from_fs_req(req: *mut uv_fs_t) -> ssize_t;
+    pub fn rust_uv_get_ptr_from_fs_req(req: *mut uv_fs_t) -> *mut libc::c_void;
+    pub fn rust_uv_get_path_from_fs_req(req: *mut uv_fs_t) -> *mut c_char;
+    pub fn rust_uv_get_loop_from_fs_req(req: *mut uv_fs_t) -> *mut uv_loop_t;
+    pub fn rust_uv_get_loop_from_getaddrinfo_req(req: *mut uv_fs_t)
+                                                 -> *mut uv_loop_t;
+    pub fn rust_uv_get_stream_handle_from_connect_req(req: *mut uv_connect_t)
+                                                      -> *mut uv_stream_t;
+    pub fn rust_uv_get_stream_handle_from_write_req(req: *mut uv_write_t)
+                                                    -> *mut uv_stream_t;
+    pub fn rust_uv_get_data_for_uv_loop(l: *mut uv_loop_t) -> *mut c_void;
+    pub fn rust_uv_set_data_for_uv_loop(l: *mut uv_loop_t, data: *mut c_void);
+    pub fn rust_uv_get_loop_for_uv_handle(handle: *mut uv_handle_t)
+                                          -> *mut uv_loop_t;
+    pub fn rust_uv_get_data_for_uv_handle(handle: *mut uv_handle_t)
+                                          -> *mut c_void;
+    pub fn rust_uv_set_data_for_uv_handle(handle: *mut uv_handle_t,
+                                          data: *mut c_void);
+    pub fn rust_uv_get_data_for_req(req: *mut c_void) -> *mut c_void;
+    pub fn rust_uv_set_data_for_req(req: *mut c_void, data: *mut c_void);
+    pub fn rust_set_stdio_container_flags(c: *mut uv_stdio_container_t, flags: c_int);
+    pub fn rust_set_stdio_container_fd(c: *mut uv_stdio_container_t, fd: c_int);
+    pub fn rust_set_stdio_container_stream(c: *mut uv_stdio_container_t,
+                                           stream: *mut uv_stream_t);
+    pub fn rust_uv_process_pid(p: *mut uv_process_t) -> c_int;
+    pub fn rust_uv_guess_handle(fd: c_int) -> c_int;
 
     // generic uv functions
     pub fn uv_loop_delete(l: *mut uv_loop_t);
@@ -569,6 +449,10 @@ extern {
     pub fn uv_read_stop(stream: *mut uv_stream_t) -> c_int;
     pub fn uv_shutdown(req: *mut uv_shutdown_t, handle: *mut uv_stream_t,
                        cb: uv_shutdown_cb) -> c_int;
+
+    pub fn uv_write(req: *mut uv_write_t, stream: *mut uv_stream_t,
+                    buf_in: *const uv_buf_t, buf_cnt: c_int,
+                    cb: uv_write_cb) -> c_int;
 
     // idle bindings
     pub fn uv_idle_init(l: *mut uv_loop_t, i: *mut uv_idle_t) -> c_int;
@@ -614,6 +498,10 @@ extern {
     pub fn uv_udp_set_broadcast(handle: *mut uv_udp_t, on: c_int) -> c_int;
     pub fn uv_udp_getsockname(h: *const uv_udp_t, name: *mut sockaddr,
                               len: *mut c_int) -> c_int;
+    pub fn uv_udp_send(req: *mut uv_udp_send_t, stream: *mut uv_stream_t,
+                       buf_in: *const uv_buf_t, buf_cnt: c_int,
+                       addr: *const sockaddr,
+                       cb: uv_udp_send_cb) -> c_int;
 
     // timer bindings
     pub fn uv_timer_init(l: *mut uv_loop_t, t: *mut uv_timer_t) -> c_int;

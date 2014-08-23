@@ -10,7 +10,7 @@
 
 #![macro_escape]
 
-use std::fmt;
+// use std::fmt;
 
 macro_rules! uverrln (
     ($($arg:tt)*) => ( {
@@ -27,8 +27,8 @@ macro_rules! uvdebug (
     })
 )
 
-pub fn dumb_println(args: &fmt::Arguments) {
-    use std::rt;
-    let mut w = rt::Stderr;
-    let _ = writeln!(&mut w, "{}", args);
-}
+// pub fn dumb_println(args: &fmt::Arguments) {
+//     use std::rt;
+//     let mut w = rt::Stderr;
+//     let _ = writeln!(&mut w, "{}", args);
+// }

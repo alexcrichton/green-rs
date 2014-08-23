@@ -148,64 +148,64 @@ impl Drop for HomingMissile {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use green::{SchedPool, PoolConfig, GreenTaskBuilder};
-    use std::rt::rtio::RtioUdpSocket;
-    use std::task::TaskBuilder;
-
-    use net::UdpWatcher;
-    use super::super::local_loop;
-
-    // On one thread, create a udp socket. Then send that socket to another
-    // thread and destroy the socket on the remote thread. This should make sure
-    // that homing kicks in for the socket to go back home to the original
-    // thread, close itself, and then come back to the last thread.
-    #[test]
-    fn test_homing_closes_correctly() {
-        let (tx, rx) = channel();
-        let mut pool = SchedPool::new(PoolConfig {
-            threads: 1,
-            event_loop_factory: ::event_loop,
-        });
-
-        TaskBuilder::new().green(&mut pool).spawn(proc() {
-            let listener = UdpWatcher::bind(local_loop(), ::next_test_ip4());
-            tx.send(listener.unwrap());
-        });
-
-        drop(pool.spawn_sched());
-        TaskBuilder::new().green(&mut pool).spawn(proc() {
-            drop(rx.recv());
-        });
-
-        pool.shutdown();
-    }
-
-    #[test]
-    fn test_homing_read() {
-        let (tx, rx) = channel();
-        let mut pool = SchedPool::new(PoolConfig {
-            threads: 1,
-            event_loop_factory: ::event_loop,
-        });
-
-        TaskBuilder::new().green(&mut pool).spawn(proc() {
-            let addr1 = ::next_test_ip4();
-            let addr2 = ::next_test_ip4();
-            let listener = UdpWatcher::bind(local_loop(), addr2);
-            tx.send((listener.unwrap(), addr1));
-            let mut listener = UdpWatcher::bind(local_loop(), addr1).unwrap();
-            listener.send_to([1, 2, 3, 4], addr2).ok().unwrap();
-        });
-
-        drop(pool.spawn_sched());
-        TaskBuilder::new().green(&mut pool).spawn(proc() {
-            let (mut watcher, addr) = rx.recv();
-            let mut buf = [0, ..10];
-            assert!(watcher.recv_from(buf).ok().unwrap() == (4, addr));
-        });
-
-        pool.shutdown();
-    }
-}
+// #[cfg(test)]
+// mod test {
+//     use green::{SchedPool, PoolConfig, GreenTaskBuilder};
+//     use std::rt::rtio::RtioUdpSocket;
+//     use std::task::TaskBuilder;
+//
+//     use net::UdpWatcher;
+//     use super::super::local_loop;
+//
+//     // On one thread, create a udp socket. Then send that socket to another
+//     // thread and destroy the socket on the remote thread. This should make sure
+//     // that homing kicks in for the socket to go back home to the original
+//     // thread, close itself, and then come back to the last thread.
+//     #[test]
+//     fn test_homing_closes_correctly() {
+//         let (tx, rx) = channel();
+//         let mut pool = SchedPool::new(PoolConfig {
+//             threads: 1,
+//             event_loop_factory: ::event_loop,
+//         });
+//
+//         TaskBuilder::new().green(&mut pool).spawn(proc() {
+//             let listener = UdpWatcher::bind(local_loop(), ::next_test_ip4());
+//             tx.send(listener.unwrap());
+//         });
+//
+//         drop(pool.spawn_sched());
+//         TaskBuilder::new().green(&mut pool).spawn(proc() {
+//             drop(rx.recv());
+//         });
+//
+//         pool.shutdown();
+//     }
+//
+//     #[test]
+//     fn test_homing_read() {
+//         let (tx, rx) = channel();
+//         let mut pool = SchedPool::new(PoolConfig {
+//             threads: 1,
+//             event_loop_factory: ::event_loop,
+//         });
+//
+//         TaskBuilder::new().green(&mut pool).spawn(proc() {
+//             let addr1 = ::next_test_ip4();
+//             let addr2 = ::next_test_ip4();
+//             let listener = UdpWatcher::bind(local_loop(), addr2);
+//             tx.send((listener.unwrap(), addr1));
+//             let mut listener = UdpWatcher::bind(local_loop(), addr1).unwrap();
+//             listener.send_to([1, 2, 3, 4], addr2).ok().unwrap();
+//         });
+//
+//         drop(pool.spawn_sched());
+//         TaskBuilder::new().green(&mut pool).spawn(proc() {
+//             let (mut watcher, addr) = rx.recv();
+//             let mut buf = [0, ..10];
+//             assert!(watcher.recv_from(buf).ok().unwrap() == (4, addr));
+//         });
+//
+//         pool.shutdown();
+//     }
+// }

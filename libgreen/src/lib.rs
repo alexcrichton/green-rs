@@ -217,6 +217,7 @@
 #[cfg(test)] #[phase(plugin, link)] extern crate log;
 extern crate libc;
 extern crate alloc;
+extern crate native;
 
 use std::mem::replace;
 use std::os;
@@ -377,7 +378,7 @@ pub struct SchedPool {
 /// keep track of how many tasks are currently running in the pool and then
 /// sending on a channel once the entire pool has been drained of all tasks.
 #[deriving(Clone)]
-struct TaskState {
+pub struct TaskState {
     cnt: Arc<AtomicUint>,
     done: Sender<()>,
 }
@@ -537,7 +538,7 @@ impl SchedPool {
 }
 
 impl TaskState {
-    fn new() -> (Receiver<()>, TaskState) {
+    pub fn new() -> (Receiver<()>, TaskState) {
         let (tx, rx) = channel();
         (rx, TaskState {
             cnt: Arc::new(AtomicUint::new(0)),

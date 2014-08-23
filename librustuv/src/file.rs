@@ -460,128 +460,128 @@ impl rtio::RtioFileStream for FileWatcher {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use libc::c_int;
-    use libc::{O_CREAT, O_RDWR, O_RDONLY, S_IWUSR, S_IRUSR};
-    use std::str;
-    use std::io::TempDir;
-    use super::FsRequest;
-    use super::super::Loop;
-    use super::super::local_loop;
-
-    fn l() -> &'static mut Loop { &mut local_loop().loop_ }
-
-    #[test]
-    fn file_test_full_simple_sync() {
-        let create_flags = O_RDWR | O_CREAT;
-        let read_flags = O_RDONLY;
-        let mode = S_IWUSR | S_IRUSR;
-        let td = TempDir::new("rustuv").unwrap();
-        let path_str = td.path().join("file_full_simple_sync.txt");
-
-        {
-            // open/create
-            let result = FsRequest::open(local_loop(), &path_str.to_c_str(),
-                                         create_flags as int, mode as int);
-            assert!(result.is_ok());
-            let result = result.unwrap();
-            let fd = result.fd;
-
-            // write
-            let result = FsRequest::write(l(), fd, "hello".as_bytes(), -1);
-            assert!(result.is_ok());
-        }
-
-        {
-            // re-open
-            let result = FsRequest::open(local_loop(), &path_str.to_c_str(),
-                                         read_flags as int, 0);
-            assert!(result.is_ok());
-            let result = result.unwrap();
-            let fd = result.fd;
-
-            // read
-            let mut read_mem = Vec::from_elem(1000, 0u8);
-            let result = FsRequest::read(l(), fd, read_mem.as_mut_slice(), 0);
-            assert!(result.is_ok());
-
-            let nread = result.unwrap();
-            assert!(nread > 0);
-            let read_str = str::from_utf8(read_mem.slice_to(nread as uint)).unwrap();
-            assert_eq!(read_str, "hello");
-        }
-        // unlink
-        let result = FsRequest::unlink(l(), &path_str.to_c_str());
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn file_test_stat() {
-        let td = TempDir::new("rustuv").unwrap();
-        let path = &td.path().join("file_test_stat_simple").to_c_str();
-        let create_flags = (O_RDWR | O_CREAT) as int;
-        let mode = (S_IWUSR | S_IRUSR) as int;
-
-        let result = FsRequest::open(local_loop(), path, create_flags, mode);
-        assert!(result.is_ok());
-        let file = result.unwrap();
-
-        let result = FsRequest::write(l(), file.fd, "hello".as_bytes(), 0);
-        assert!(result.is_ok());
-
-        let result = FsRequest::stat(l(), path);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().size, 5);
-
-        let result = FsRequest::fstat(l(), file.fd);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().size, 5);
-
-        fn free<T>(_: T) {}
-        free(file);
-
-        let result = FsRequest::unlink(l(), path);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn file_test_mk_rm_dir() {
-        let td = TempDir::new("rustuv").unwrap();
-        let path = &td.path().join("mk_rm_dir").to_c_str();
-        let mode = S_IWUSR | S_IRUSR;
-
-        let result = FsRequest::mkdir(l(), path, mode as c_int);
-        assert!(result.is_ok());
-
-        let result = FsRequest::rmdir(l(), path);
-        assert!(result.is_ok());
-
-        let result = FsRequest::stat(l(), path);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn file_test_mkdir_chokes_on_double_create() {
-        let td = TempDir::new("rustuv").unwrap();
-        let path = &td.path().join("double_create_dir").to_c_str();
-        let mode = S_IWUSR | S_IRUSR;
-
-        let result = FsRequest::stat(l(), path);
-        assert!(result.is_err(), "{:?}", result);
-        let result = FsRequest::mkdir(l(), path, mode as c_int);
-        assert!(result.is_ok(), "{:?}", result);
-        let result = FsRequest::mkdir(l(), path, mode as c_int);
-        assert!(result.is_err(), "{:?}", result);
-        let result = FsRequest::rmdir(l(), path);
-        assert!(result.is_ok(), "{:?}", result);
-    }
-
-    #[test]
-    fn file_test_rmdir_chokes_on_nonexistant_path() {
-        let td = TempDir::new("rustuv").unwrap();
-        let path = &td.path().join("never_existed_dir").to_c_str();
-        let result = FsRequest::rmdir(l(), path);
-        assert!(result.is_err());
-    }
-}
+// #[cfg(test)]
+// mod test {
+//     use libc::c_int;
+//     use libc::{O_CREAT, O_RDWR, O_RDONLY, S_IWUSR, S_IRUSR};
+//     use std::str;
+//     use std::io::TempDir;
+//     use super::FsRequest;
+//     use super::super::Loop;
+//     use super::super::local_loop;
+//
+//     fn l() -> &'static mut Loop { &mut local_loop().loop_ }
+//
+//     #[test]
+//     fn file_test_full_simple_sync() {
+//         let create_flags = O_RDWR | O_CREAT;
+//         let read_flags = O_RDONLY;
+//         let mode = S_IWUSR | S_IRUSR;
+//         let td = TempDir::new("rustuv").unwrap();
+//         let path_str = td.path().join("file_full_simple_sync.txt");
+//
+//         {
+//             // open/create
+//             let result = FsRequest::open(local_loop(), &path_str.to_c_str(),
+//                                          create_flags as int, mode as int);
+//             assert!(result.is_ok());
+//             let result = result.unwrap();
+//             let fd = result.fd;
+//
+//             // write
+//             let result = FsRequest::write(l(), fd, "hello".as_bytes(), -1);
+//             assert!(result.is_ok());
+//         }
+//
+//         {
+//             // re-open
+//             let result = FsRequest::open(local_loop(), &path_str.to_c_str(),
+//                                          read_flags as int, 0);
+//             assert!(result.is_ok());
+//             let result = result.unwrap();
+//             let fd = result.fd;
+//
+//             // read
+//             let mut read_mem = Vec::from_elem(1000, 0u8);
+//             let result = FsRequest::read(l(), fd, read_mem.as_mut_slice(), 0);
+//             assert!(result.is_ok());
+//
+//             let nread = result.unwrap();
+//             assert!(nread > 0);
+//             let read_str = str::from_utf8(read_mem.slice_to(nread as uint)).unwrap();
+//             assert_eq!(read_str, "hello");
+//         }
+//         // unlink
+//         let result = FsRequest::unlink(l(), &path_str.to_c_str());
+//         assert!(result.is_ok());
+//     }
+//
+//     #[test]
+//     fn file_test_stat() {
+//         let td = TempDir::new("rustuv").unwrap();
+//         let path = &td.path().join("file_test_stat_simple").to_c_str();
+//         let create_flags = (O_RDWR | O_CREAT) as int;
+//         let mode = (S_IWUSR | S_IRUSR) as int;
+//
+//         let result = FsRequest::open(local_loop(), path, create_flags, mode);
+//         assert!(result.is_ok());
+//         let file = result.unwrap();
+//
+//         let result = FsRequest::write(l(), file.fd, "hello".as_bytes(), 0);
+//         assert!(result.is_ok());
+//
+//         let result = FsRequest::stat(l(), path);
+//         assert!(result.is_ok());
+//         assert_eq!(result.unwrap().size, 5);
+//
+//         let result = FsRequest::fstat(l(), file.fd);
+//         assert!(result.is_ok());
+//         assert_eq!(result.unwrap().size, 5);
+//
+//         fn free<T>(_: T) {}
+//         free(file);
+//
+//         let result = FsRequest::unlink(l(), path);
+//         assert!(result.is_ok());
+//     }
+//
+//     #[test]
+//     fn file_test_mk_rm_dir() {
+//         let td = TempDir::new("rustuv").unwrap();
+//         let path = &td.path().join("mk_rm_dir").to_c_str();
+//         let mode = S_IWUSR | S_IRUSR;
+//
+//         let result = FsRequest::mkdir(l(), path, mode as c_int);
+//         assert!(result.is_ok());
+//
+//         let result = FsRequest::rmdir(l(), path);
+//         assert!(result.is_ok());
+//
+//         let result = FsRequest::stat(l(), path);
+//         assert!(result.is_err());
+//     }
+//
+//     #[test]
+//     fn file_test_mkdir_chokes_on_double_create() {
+//         let td = TempDir::new("rustuv").unwrap();
+//         let path = &td.path().join("double_create_dir").to_c_str();
+//         let mode = S_IWUSR | S_IRUSR;
+//
+//         let result = FsRequest::stat(l(), path);
+//         assert!(result.is_err(), "{:?}", result);
+//         let result = FsRequest::mkdir(l(), path, mode as c_int);
+//         assert!(result.is_ok(), "{:?}", result);
+//         let result = FsRequest::mkdir(l(), path, mode as c_int);
+//         assert!(result.is_err(), "{:?}", result);
+//         let result = FsRequest::rmdir(l(), path);
+//         assert!(result.is_ok(), "{:?}", result);
+//     }
+//
+//     #[test]
+//     fn file_test_rmdir_chokes_on_nonexistant_path() {
+//         let td = TempDir::new("rustuv").unwrap();
+//         let path = &td.path().join("never_existed_dir").to_c_str();
+//         let result = FsRequest::rmdir(l(), path);
+//         assert!(result.is_err());
+//     }
+// }

@@ -98,9 +98,11 @@ mod test {
     use std::rc::Rc;
     use std::rt::task::{BlockedTask, Task};
     use std::rt::local::Local;
+
     use green::{Callback, PausableIdleCallback};
+    use uvio::UvEventLoop;
+    use Loop;
     use super::IdleWatcher;
-    use super::super::local_loop;
 
     type Chan = Rc<RefCell<(Option<BlockedTask>, uint)>>;
 
@@ -124,12 +126,13 @@ mod test {
         }
     }
 
-    fn mk(v: uint) -> (Box<IdleWatcher>, Chan) {
+    fn mk(v: uint, uv: &mut UvEventLoop) -> (Box<IdleWatcher>, Chan) {
         let rc = Rc::new(RefCell::new((None, 0)));
         let cb = box MyCallback(rc.clone(), v);
         let cb = cb as Box<Callback>;
         let cb = unsafe { mem::transmute(cb) };
-        (IdleWatcher::new(&mut local_loop().loop_, cb), rc)
+        let mut l = Loop::wrap(uv.uv_loop());
+        (IdleWatcher::new(&mut l, cb), rc)
     }
 
     fn sleep(chan: &Chan) -> uint {
@@ -147,40 +150,24 @@ mod test {
         match *chan.borrow() { (_, n) => n }
     }
 
-    #[test]
-    fn not_used() {
-        let (_idle, _chan) = mk(1);
-    }
+    test!(fn not_used() {
+        let (_idle, _chan) = mk(1, ::test::local_loop());
+    })
 
-    #[test]
-    fn smoke_test() {
-        let (mut idle, chan) = mk(1);
+    test!(fn smoke_test() {
+        let (mut idle, chan) = mk(1, ::test::local_loop());
         idle.resume();
         assert_eq!(sleep(&chan), 1);
-    }
+    })
 
-    #[test] #[should_fail]
-    fn smoke_fail() {
-        // By default, the test harness is capturing our stderr output through a
-        // channel. This means that when we start failing and "print" our error
-        // message, we could be switched to running on another test. The
-        // IdleWatcher assumes that we're already running on the same task, so
-        // it can cause serious problems and internal race conditions.
-        //
-        // To fix this bug, we just set our stderr to a null writer which will
-        // never reschedule us, so we're guaranteed to stay on the same
-        // task/event loop.
-        use std::io;
-        drop(io::stdio::set_stderr(box io::util::NullWriter));
-
-        let (mut idle, _chan) = mk(1);
+    test!(fn smoke_drop() {
+        let (mut idle, _chan) = mk(1, ::test::local_loop());
         idle.resume();
         fail!();
-    }
+    })
 
-    #[test]
-    fn fun_combinations_of_methods() {
-        let (mut idle, chan) = mk(1);
+    test!(fn fun_combinations_of_methods() {
+        let (mut idle, chan) = mk(1, ::test::local_loop());
         idle.resume();
         assert_eq!(sleep(&chan), 1);
         idle.pause();
@@ -191,16 +178,15 @@ mod test {
         idle.pause();
         idle.resume();
         assert_eq!(sleep(&chan), 1);
-    }
+    })
 
-    #[test]
-    fn pause_pauses() {
-        let (mut idle1, chan1) = mk(1);
-        let (mut idle2, chan2) = mk(2);
+    test!(fn pause_pauses() {
+        let (mut idle1, chan1) = mk(1, ::test::local_loop());
+        let (mut idle2, chan2) = mk(2, ::test::local_loop());
         idle2.resume();
         assert_eq!(sleep(&chan2), 2);
         idle2.pause();
         idle1.resume();
         assert_eq!(sleep(&chan1), 1);
-    }
+    })
 }

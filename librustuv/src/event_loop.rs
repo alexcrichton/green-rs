@@ -8,27 +8,30 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! The implementation of `rtio` for libuv
+// //! The implementation of `rtio` for libuv
 
-use std::c_str::CString;
-use std::mem;
-use std::rt::rtio;
-use std::rt::rtio::{ProcessConfig, IoFactory, IoResult};
-use libc::c_int;
-use libc::{O_CREAT, O_APPEND, O_TRUNC, O_RDWR, O_RDONLY, O_WRONLY, S_IRUSR,
-                S_IWUSR};
-use libc;
+// use std::c_str::CString;
+// use std::mem;
+// use std::rt::rtio;
+// use std::rt::rtio::{ProcessConfig, IoFactory, IoResult};
+// use libc::c_int;
+// use libc::{O_CREAT, O_APPEND, O_TRUNC, O_RDWR, O_RDONLY, O_WRONLY, S_IRUSR,
+//                 S_IWUSR};
+// use libc;
 use green;
-use green::EventLoop;
 
-use super::{uv_error_to_io_error, Loop};
+use UvResult;
+use raw::Loop;
+// use green::EventLoop;
+//
+// use super::{uv_error_to_io_error, Loop};
 
 // use addrinfo::GetAddrInfoRequest;
-use async::AsyncWatcher;
+// use async::AsyncWatcher;
 // use file::{FsRequest, FileWatcher};
-use queue::QueuePool;
-use homing::HomeHandle;
-use idle::IdleWatcher;
+// use queue::QueuePool;
+// use homing::HomeHandle;
+// use idle::IdleWatcher;
 // use net::{TcpWatcher, TcpListener, UdpWatcher};
 // use pipe::{PipeWatcher, PipeListener};
 // use process::Process;
@@ -37,28 +40,26 @@ use idle::IdleWatcher;
 // use tty::TtyWatcher;
 use uvll;
 
-// Obviously an Event Loop is always home.
-pub struct UvEventLoop {
-    uvio: UvIoFactory
+pub struct EventLoop {
+    uv_loop: Loop,
 }
 
-impl UvEventLoop {
-    pub fn new() -> UvEventLoop {
-        let mut loop_ = Loop::new();
-        let handle_pool = QueuePool::new(&mut loop_);
-        UvEventLoop {
-            uvio: UvIoFactory {
-                loop_: loop_,
-                handle_pool: Some(handle_pool),
-            }
-        }
+impl EventLoop {
+    pub fn new() -> UvResult<EventLoop> {
+        Ok(EventLoop {
+            uv_loop: try!(unsafe { Loop::new() }),
+        })
     }
 
-    #[cfg(test)]
-    pub fn uv_loop(&mut self) -> *mut uvll::uv_loop_t { self.uvio.uv_loop() }
+    /// Gain access to the underlying event loop.
+    ///
+    /// This method is unsafe as there is no guarantee that further safe methods
+    /// called on the `Loop` will be valid as this event loop will deallocate it
+    /// when it goes out of scope.
+    pub unsafe fn uv_loop(&self) -> Loop { self.uv_loop }
 }
 
-impl Drop for UvEventLoop {
+impl Drop for EventLoop {
     fn drop(&mut self) {
         // Must first destroy the pool of handles before we destroy the loop
         // because otherwise the contained async handle will be destroyed after
@@ -69,58 +70,65 @@ impl Drop for UvEventLoop {
         // Lastly, after we've closed the pool of handles we pump the event loop
         // one last time to run any closing callbacks to make sure the loop
         // shuts down cleanly.
-        let handle = self.uvio.handle_pool.get_ref().handle();
-        drop(self.uvio.handle_pool.take());
-        self.run();
-
-        self.uvio.loop_.close();
-        unsafe { uvll::free_handle(handle) }
+        // let handle = self.uvio.handle_pool.get_ref().handle();
+        // drop(self.uvio.handle_pool.take());
+        // self.run();
+        //
+        // self.uvio.loop_.close();
+        // unsafe { uvll::free_handle(handle) }
+        unsafe {
+            self.uv_loop.close().unwrap()
+        }
     }
 }
 
-impl EventLoop for UvEventLoop {
+impl green::EventLoop for EventLoop {
     fn run(&mut self) {
-        self.uvio.loop_.run();
+        self.uv_loop.run(uvll::RUN_DEFAULT).unwrap();
     }
 
     fn callback(&mut self, f: proc()) {
-        IdleWatcher::onetime(&mut self.uvio.loop_, f);
+        fail!()
+        // IdleWatcher::onetime(&mut self.uvio.loop_, f);
     }
 
     fn pausable_idle_callback(&mut self, cb: Box<green::Callback + Send>)
                               -> Box<green::PausableIdleCallback + Send> {
-        IdleWatcher::new(&mut self.uvio.loop_, cb)
-                         as Box<green::PausableIdleCallback + Send>
+        fail!()
+        // IdleWatcher::new(&mut self.uvio.loop_, cb)
+        //                  as Box<green::PausableIdleCallback + Send>
     }
 
     fn remote_callback(&mut self, f: Box<green::Callback + Send>)
                        -> Box<green::RemoteCallback + Send> {
-        box AsyncWatcher::new(&mut self.uvio.loop_, f) as
-            Box<green::RemoteCallback + Send>
+        fail!()
+        // box AsyncWatcher::new(&mut self.uvio.loop_, f) as
+        //     Box<green::RemoteCallback + Send>
     }
 
     fn has_active_io(&self) -> bool {
-        self.uvio.loop_.get_blockers() > 0
+        fail!()
+        // self.uvio.loop_.get_blockers() > 0
     }
 }
 
-pub struct UvIoFactory {
-    pub loop_: Loop,
-    handle_pool: Option<Box<QueuePool>>,
-}
+// pub struct IoFactory {
+//     pub loop_: Loop,
+//     handle_pool: Option<Box<QueuePool>>,
+// }
+//
+// impl IoFactory {
+//     pub fn uv_loop<'a>(&mut self) -> *mut uvll::uv_loop_t { self.loop_.handle }
+//
+//     pub fn make_handle(&mut self) -> HomeHandle {
+//         // It's understood by the homing code that the "local id" is just the
+//         // pointer of the local I/O factory cast to a uint.
+//         let id: uint = unsafe { mem::transmute_copy(&self) };
+//         HomeHandle::new(id, &mut **self.handle_pool.get_mut_ref())
+//     }
+// }
 
-impl UvIoFactory {
-    pub fn uv_loop<'a>(&mut self) -> *mut uvll::uv_loop_t { self.loop_.handle }
-
-    pub fn make_handle(&mut self) -> HomeHandle {
-        // It's understood by the homing code that the "local id" is just the
-        // pointer of the local I/O factory cast to a uint.
-        let id: uint = unsafe { mem::transmute_copy(&self) };
-        HomeHandle::new(id, &mut **self.handle_pool.get_mut_ref())
-    }
-}
-
-// impl IoFactory for UvIoFactory {
+// impl IoFactory for IoFactory {
 //     // Connect to an address and return a new stream
 //     // NB: This blocks the task waiting on the connection.
 //     // It would probably be better to return a future
@@ -309,20 +317,21 @@ impl UvIoFactory {
 //     }
 // }
 
-#[cfg(test)]
-mod tests {
-    use green::EventLoop;
-    use super::UvEventLoop;
-
-    #[test]
-    fn test_callback_run_once() {
-        let mut event_loop = UvEventLoop::new();
-        let mut count = 0;
-        let count_ptr: *mut int = &mut count;
-        event_loop.callback(proc() {
-            unsafe { *count_ptr += 1 }
-        });
-        event_loop.run();
-        assert_eq!(count, 1);
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use green::EventLoop;
+//     use super::EventLoop;
+//
+//     #[test]
+//     fn test_callback_run_once() {
+//         let mut event_loop = EventLoop::new();
+//         let mut count = 0;
+//         let count_ptr: *mut int = &mut count;
+//         event_loop.callback(proc() {
+//             unsafe { *count_ptr += 1 }
+//         });
+//         event_loop.run();
+//         assert_eq!(count, 1);
+//     }
+// }
+//

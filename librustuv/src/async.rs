@@ -119,38 +119,36 @@ impl Drop for AsyncWatcher {
 
 #[cfg(test)]
 mod test_remote {
-    use std::rt::thread::Thread;
-
     use green::{Callback, RemoteCallback};
+    use Loop;
+
     use super::AsyncWatcher;
-    use super::super::local_loop;
 
     // Make sure that we can fire watchers in remote threads and that they
     // actually trigger what they say they will.
-    #[test]
-    fn smoke_test() {
+    test!(fn smoke_test() {
         struct MyCallback(Option<Sender<int>>);
         impl Callback for MyCallback {
             fn call(&mut self) {
                 // this can get called more than once, but we only want to send
                 // once
                 let MyCallback(ref mut s) = *self;
-                if s.is_some() {
-                    s.take_unwrap().send(1);
+                match s.take() {
+                    Some(s) => s.send(1),
+                    None => {}
                 }
             }
         }
 
         let (tx, rx) = channel();
         let cb = box MyCallback(Some(tx));
-        let watcher = AsyncWatcher::new(&mut local_loop().loop_, cb);
+        let mut l = Loop::wrap(::test::local_loop().uv_loop());
+        let watcher = AsyncWatcher::new(&mut l, cb);
 
-        let thread = Thread::start(proc() {
+        spawn(proc() {
             let mut watcher = watcher;
             watcher.fire();
         });
-
         assert_eq!(rx.recv(), 1);
-        thread.join();
-    }
+    })
 }

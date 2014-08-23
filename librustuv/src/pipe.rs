@@ -317,86 +317,86 @@ impl HomingIO for PipeAcceptor {
     fn home<'r>(&'r mut self) -> &'r mut HomeHandle { &mut self.listener.home }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::rt::rtio::{RtioUnixListener, RtioUnixAcceptor, RtioPipe};
-    use std::io::test::next_test_unix;
-
-    use super::{PipeWatcher, PipeListener};
-    use super::super::local_loop;
-
-    #[test]
-    fn connect_err() {
-        match PipeWatcher::connect(local_loop(), &"path/to/nowhere".to_c_str(),
-                                   None) {
-            Ok(..) => fail!(),
-            Err(..) => {}
-        }
-    }
-
-    #[test]
-    fn bind_err() {
-        match PipeListener::bind(local_loop(), &"path/to/nowhere".to_c_str()) {
-            Ok(..) => fail!(),
-            Err(e) => assert_eq!(e.name(), "EACCES".to_string()),
-        }
-    }
-
-    #[test]
-    fn bind() {
-        let p = next_test_unix().to_c_str();
-        match PipeListener::bind(local_loop(), &p) {
-            Ok(..) => {}
-            Err(..) => fail!(),
-        }
-    }
-
-    #[test] #[should_fail]
-    fn bind_fail() {
-        let p = next_test_unix().to_c_str();
-        let _w = PipeListener::bind(local_loop(), &p).unwrap();
-        fail!();
-    }
-
-    #[test]
-    fn connect() {
-        let path = next_test_unix();
-        let path2 = path.clone();
-        let (tx, rx) = channel();
-
-        spawn(proc() {
-            let p = PipeListener::bind(local_loop(), &path2.to_c_str()).unwrap();
-            let mut p = p.listen().ok().unwrap();
-            tx.send(());
-            let mut client = p.accept().ok().unwrap();
-            let mut buf = [0];
-            assert!(client.read(buf).ok().unwrap() == 1);
-            assert_eq!(buf[0], 1);
-            assert!(client.write([2]).is_ok());
-        });
-        rx.recv();
-        let mut c = PipeWatcher::connect(local_loop(), &path.to_c_str(), None).unwrap();
-        assert!(c.write([1]).is_ok());
-        let mut buf = [0];
-        assert!(c.read(buf).ok().unwrap() == 1);
-        assert_eq!(buf[0], 2);
-    }
-
-    #[test] #[should_fail]
-    fn connect_fail() {
-        let path = next_test_unix();
-        let path2 = path.clone();
-        let (tx, rx) = channel();
-
-        spawn(proc() {
-            let p = PipeListener::bind(local_loop(), &path2.to_c_str()).unwrap();
-            let mut p = p.listen().ok().unwrap();
-            tx.send(());
-            drop(p.accept().ok().unwrap());
-        });
-        rx.recv();
-        let _c = PipeWatcher::connect(local_loop(), &path.to_c_str(), None).unwrap();
-        fail!()
-
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use std::rt::rtio::{RtioUnixListener, RtioUnixAcceptor, RtioPipe};
+//     use std::io::test::next_test_unix;
+//
+//     use super::{PipeWatcher, PipeListener};
+//     use super::super::local_loop;
+//
+//     #[test]
+//     fn connect_err() {
+//         match PipeWatcher::connect(local_loop(), &"path/to/nowhere".to_c_str(),
+//                                    None) {
+//             Ok(..) => fail!(),
+//             Err(..) => {}
+//         }
+//     }
+//
+//     #[test]
+//     fn bind_err() {
+//         match PipeListener::bind(local_loop(), &"path/to/nowhere".to_c_str()) {
+//             Ok(..) => fail!(),
+//             Err(e) => assert_eq!(e.name(), "EACCES"),
+//         }
+//     }
+//
+//     #[test]
+//     fn bind() {
+//         let p = next_test_unix().to_c_str();
+//         match PipeListener::bind(local_loop(), &p) {
+//             Ok(..) => {}
+//             Err(..) => fail!(),
+//         }
+//     }
+//
+//     #[test] #[should_fail]
+//     fn bind_fail() {
+//         let p = next_test_unix().to_c_str();
+//         let _w = PipeListener::bind(local_loop(), &p).unwrap();
+//         fail!();
+//     }
+//
+//     #[test]
+//     fn connect() {
+//         let path = next_test_unix();
+//         let path2 = path.clone();
+//         let (tx, rx) = channel();
+//
+//         spawn(proc() {
+//             let p = PipeListener::bind(local_loop(), &path2.to_c_str()).unwrap();
+//             let mut p = p.listen().ok().unwrap();
+//             tx.send(());
+//             let mut client = p.accept().ok().unwrap();
+//             let mut buf = [0];
+//             assert!(client.read(buf).ok().unwrap() == 1);
+//             assert_eq!(buf[0], 1);
+//             assert!(client.write([2]).is_ok());
+//         });
+//         rx.recv();
+//         let mut c = PipeWatcher::connect(local_loop(), &path.to_c_str(), None).unwrap();
+//         assert!(c.write([1]).is_ok());
+//         let mut buf = [0];
+//         assert!(c.read(buf).ok().unwrap() == 1);
+//         assert_eq!(buf[0], 2);
+//     }
+//
+//     #[test] #[should_fail]
+//     fn connect_fail() {
+//         let path = next_test_unix();
+//         let path2 = path.clone();
+//         let (tx, rx) = channel();
+//
+//         spawn(proc() {
+//             let p = PipeListener::bind(local_loop(), &path2.to_c_str()).unwrap();
+//             let mut p = p.listen().ok().unwrap();
+//             tx.send(());
+//             drop(p.accept().ok().unwrap());
+//         });
+//         rx.recv();
+//         let _c = PipeWatcher::connect(local_loop(), &path.to_c_str(), None).unwrap();
+//         fail!()
+//
+//     }
+// }
