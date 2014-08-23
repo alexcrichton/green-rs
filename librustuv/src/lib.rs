@@ -52,21 +52,11 @@ use libc::{c_int, c_void};
 use std::fmt;
 use std::mem;
 use std::ptr;
-use std::string;
 use std::rt::local::Local;
 use std::rt::rtio::{IoResult, IoError};
 use std::rt::task::{BlockedTask, Task};
+use std::str;
 use std::task;
-
-pub use self::async::AsyncWatcher;
-pub use self::file::{FsRequest, FileWatcher};
-pub use self::idle::IdleWatcher;
-pub use self::net::{TcpWatcher, TcpListener, TcpAcceptor, UdpWatcher};
-pub use self::pipe::{PipeWatcher, PipeListener, PipeAcceptor};
-pub use self::process::Process;
-pub use self::signal::SignalWatcher;
-pub use self::timer::TimerWatcher;
-pub use self::tty::TtyWatcher;
 
 // Run tests with libgreen instead of libnative.
 #[cfg(test)] #[start]
@@ -82,20 +72,20 @@ mod homing;
 mod queue;
 mod rc;
 
-pub mod uvio;
+mod uvio;
 pub mod uvll;
 
-pub mod file;
-pub mod net;
-pub mod idle;
-pub mod timer;
-pub mod async;
-pub mod addrinfo;
-pub mod process;
-pub mod pipe;
-pub mod tty;
-pub mod signal;
-pub mod stream;
+mod file;
+mod net;
+mod idle;
+mod timer;
+mod async;
+mod addrinfo;
+mod process;
+mod pipe;
+mod tty;
+mod signal;
+mod stream;
 
 /// Creates a new event loop which is powered by libuv
 ///
@@ -123,7 +113,7 @@ pub fn event_loop() -> Box<green::EventLoop + Send> {
 }
 
 /// A type that wraps a uv handle
-pub trait UvHandle<T> {
+trait UvHandle<T> {
     fn uv_handle(&self) -> *mut T;
 
     fn uv_loop(&self) -> Loop {
@@ -189,7 +179,7 @@ pub trait UvHandle<T> {
     }
 }
 
-pub struct ForbidSwitch {
+struct ForbidSwitch {
     msg: &'static str,
     io: uint,
 }
@@ -211,7 +201,7 @@ impl Drop for ForbidSwitch {
     }
 }
 
-pub struct ForbidUnwind {
+struct ForbidUnwind {
     msg: &'static str,
     failing_before: bool,
 }
@@ -253,7 +243,7 @@ fn wakeup(slot: &mut Option<BlockedTask>) {
     let _ = slot.take_unwrap().wake().map(|t| t.reawaken());
 }
 
-pub struct Request {
+struct Request {
     pub handle: *mut uvll::uv_req_t,
     defused: bool,
 }
@@ -305,7 +295,7 @@ impl Drop for Request {
 /// FIXME: Loop(*handle) is buggy with destructors. Normal structs
 /// with dtors may not be destructured, but tuple structs can,
 /// but the results are not correct.
-pub struct Loop {
+struct Loop {
     handle: *mut uvll::uv_loop_t
 }
 
@@ -384,17 +374,17 @@ fn error_smoke_test() {
 }
 
 #[cfg(unix)]
-pub fn uv_error_to_io_error(uverr: UvError) -> IoError {
+fn uv_error_to_io_error(uverr: UvError) -> IoError {
     let UvError(errcode) = uverr;
     IoError {
         code: if errcode == uvll::EOF {libc::EOF as uint} else {-errcode as uint},
         extra: 0,
-        detail: Some(uverr.desc()),
+        detail: Some(uverr.desc().to_string()),
     }
 }
 
 #[cfg(windows)]
-pub fn uv_error_to_io_error(uverr: UvError) -> IoError {
+fn uv_error_to_io_error(uverr: UvError) -> IoError {
     let UvError(errcode) = uverr;
     IoError {
         code: match errcode {
@@ -421,31 +411,15 @@ pub fn uv_error_to_io_error(uverr: UvError) -> IoError {
     }
 }
 
-/// Given a uv error code, convert a callback status to a UvError
-pub fn status_to_maybe_uv_error(status: c_int) -> Option<UvError> {
-    if status >= 0 {
-        None
-    } else {
-        Some(UvError(status))
-    }
-}
-
-pub fn status_to_io_result(status: c_int) -> IoResult<()> {
+fn status_to_io_result(status: c_int) -> IoResult<()> {
     if status >= 0 {Ok(())} else {Err(uv_error_to_io_error(UvError(status)))}
 }
 
 /// The uv buffer type
-pub type Buf = uvll::uv_buf_t;
-
-pub fn empty_buf() -> Buf {
-    uvll::uv_buf_t {
-        base: ptr::mut_null(),
-        len: 0,
-    }
-}
+type Buf = uvll::uv_buf_t;
 
 /// Borrow a slice to a Buf
-pub fn slice_to_uv_buf(v: &[u8]) -> Buf {
+fn slice_to_uv_buf(v: &[u8]) -> Buf {
     let data = v.as_ptr();
     uvll::uv_buf_t { base: data as *mut u8, len: v.len() as uvll::uv_buf_len_t }
 }
