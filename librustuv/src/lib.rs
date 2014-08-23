@@ -337,28 +337,26 @@ impl Loop {
 pub struct UvError(c_int);
 
 impl UvError {
-    pub fn name(&self) -> String {
+    /// Return the name of this error
+    pub fn name(&self) -> &'static str {
         unsafe {
-            let inner = match self { &UvError(a) => a };
-            let name_str = uvll::uv_err_name(inner);
+            let name_str = uvll::uv_err_name(self.code());
             assert!(name_str.is_not_null());
-            string::raw::from_buf(name_str as *const u8)
+            str::raw::c_str_to_static_slice(name_str)
         }
     }
 
-    pub fn desc(&self) -> String {
+    /// Return a textual description of this error
+    pub fn desc(&self) -> &'static str {
         unsafe {
-            let inner = match self { &UvError(a) => a };
-            let desc_str = uvll::uv_strerror(inner);
-            assert!(desc_str.is_not_null());
-            string::raw::from_buf(desc_str as *const u8)
+            let name_str = uvll::uv_strerror(self.code());
+            assert!(name_str.is_not_null());
+            str::raw::c_str_to_static_slice(name_str)
         }
     }
 
-    pub fn is_eof(&self) -> bool {
-        let UvError(handle) = *self;
-        handle == uvll::EOF
-    }
+    /// Gain access to the raw code in this error
+    pub fn code(&self) -> c_int { let UvError(code) = *self; code }
 }
 
 impl fmt::Show for UvError {
