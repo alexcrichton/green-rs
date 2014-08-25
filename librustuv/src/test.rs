@@ -1,34 +1,36 @@
 #![macro_escape]
 
 use std::sync::deque::BufferPool;
-use std::mem;
 use std::rt::local::Local;
 use std::rt::task::Task;
+use std::io::stdio;
 
-use green::sched::{Scheduler, Shutdown};
+use green::sched::{Scheduler, Shutdown, SchedHandle};
 use green::task::GreenTask;
 use green::sleeper_list::SleeperList;
 use green::TaskState;
 
 use EventLoop;
 
-local_data_key!(local_loop_key: uint)
-
 macro_rules! test( (fn $name:ident() $b:block) => (
     #[test]
     fn $name() { ::test::runtest(proc() $b) }
 ) )
 
-pub fn local_loop() -> &'static mut EventLoop {
-    unsafe { mem::transmute(*local_loop_key.get().unwrap()) }
+struct SchedulerExiter { handle: SchedHandle }
+impl Drop for SchedulerExiter {
+    fn drop(&mut self) { self.handle.send(Shutdown) }
 }
 
 pub fn runtest(p: proc(): Send) {
+    let stdout = stdio::set_stdout(box stdio::stdout());
+    let stderr = stdio::set_stderr(box stdio::stderr());
+
+    // Create a scheduler to run locally
     let pool = BufferPool::new();
     let (worker, stealer) = pool.deque();
     let (rx, state) = TaskState::new();
     let event_loop = box EventLoop::new().unwrap();
-    let eloop_key = &*event_loop as *const _ as uint;
     let sched = Scheduler::new(100,
                                event_loop,
                                worker,
@@ -36,15 +38,33 @@ pub fn runtest(p: proc(): Send) {
                                SleeperList::new(),
                                state);
     let mut sched = box sched;
-    sched.make_handle().send(Shutdown);
+
+    // Schedule the shutdown message to the scheduler, but only send it after
+    // the scheduler has exited.
+    let exit = SchedulerExiter { handle: sched.make_handle() };
+
+    // Enqueue a fresh geen task for the given test
+    let (tx1, rx1) = channel();
     let task = GreenTask::new(&mut sched.stack_pool, None, proc() {
-        let _ = local_loop_key.replace(Some(eloop_key));
+        stdout.map(stdio::set_stdout);
+        stderr.map(stdio::set_stderr);
         p();
+        tx1.send(());
+        drop(exit);
     });
     sched.enqueue_task(task);
-    let _native_test_task = Local::borrow(None::<Task>);
-    sched.bootstrap();
+
+    // Steal away the actual native test task and then run the scheduler
+    {
+        let _native_test_task = Local::borrow(None::<Task>);
+        sched.bootstrap();
+    }
+
+    // Ensure the scheduler exited with all tasks having completed.
     rx.recv();
+
+    // This will fail if the task did not exit cleanly.
+    rx1.recv();
 }
 
 

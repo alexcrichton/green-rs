@@ -7,3 +7,5 @@ build = "make -C build"
 [dependencies.green]
 path = "../libgreen"
 
+[dependencies.tls]
+path = "../libtls"

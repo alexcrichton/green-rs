@@ -9,6 +9,8 @@
 // except according to those terms.
 
 use std::mem;
+use std::kinds::marker;
+use std::cell::Cell;
 
 // use std::c_str::CString;
 // use std::mem;
@@ -20,7 +22,7 @@ use std::mem;
 // use libc;
 use green;
 
-use {UvResult, Idle, Async};
+use {UvResult, Idle, Async, UvError};
 use raw::{mod, Loop, Handle};
 // use green::EventLoop;
 //
@@ -40,8 +42,16 @@ use raw::{mod, Loop, Handle};
 // use tty::TtyWatcher;
 use uvll;
 
+tls!(local_loop: Cell<*mut EventLoop>)
+
 pub struct EventLoop {
     uv_loop: Loop,
+}
+
+pub struct BorrowedEventLoop {
+    local: *mut EventLoop,
+    marker1: marker::NoSend,
+    marker2: marker::NoSync,
 }
 
 impl EventLoop {
@@ -51,12 +61,82 @@ impl EventLoop {
         })
     }
 
+    /// Borrow a reference to the local event loop.
+    ///
+    /// If there is no local event loop, or the local event loop is already
+    /// borrowed, then an error is returned.
+    pub fn borrow() -> UvResult<BorrowedEventLoop> {
+        let local = unsafe {
+            local_loop.get(|local| {
+                local.map(|c| {
+                    let r = c.get();
+                    c.set(0 as *mut _);
+                    r
+                })
+            })
+        };
+        match local {
+            Some(eloop) => Ok(BorrowedEventLoop {
+                local: eloop,
+                marker1: marker::NoSend,
+                marker2: marker::NoSync,
+            }),
+            None => Err(UvError(uvll::UNKNOWN))
+        }
+    }
+
     /// Gain access to the underlying event loop.
     ///
     /// This method is unsafe as there is no guarantee that further safe methods
     /// called on the `Loop` will be valid as this event loop will deallocate it
     /// when it goes out of scope.
     pub unsafe fn uv_loop(&self) -> Loop { self.uv_loop }
+}
+
+impl green::EventLoop for EventLoop {
+    fn run(&mut self) {
+        let tls = Cell::new(self as *mut _);
+        unsafe {
+            local_loop.set(&tls, || {
+                self.uv_loop.run(uvll::RUN_DEFAULT).unwrap();
+            });
+        }
+    }
+
+    fn callback(&mut self, f: proc()) {
+        // Create a new idle handle, put the procedure into the custom data, and
+        // then clean it up when the idle handle fires.
+        unsafe {
+            let mut idle = raw::Idle::new(&self.uv_loop).unwrap();
+            idle.set_data(mem::transmute(box f));
+            idle.start(onetime).unwrap();
+        }
+
+        extern fn onetime(handle: *mut uvll::uv_idle_t) {
+            unsafe {
+                let mut idle: raw::Idle = Handle::from_raw(handle);
+                let f: Box<proc()> = mem::transmute(idle.get_data());
+                idle.close_and_free();
+                (*f)();
+            }
+        }
+    }
+
+    fn pausable_idle_callback(&mut self, cb: Box<green::Callback + Send>)
+                              -> Box<green::PausableIdleCallback + Send> {
+        box Idle::new_on(self, cb).unwrap()
+            as Box<green::PausableIdleCallback + Send>
+    }
+
+    fn remote_callback(&mut self, f: Box<green::Callback + Send>)
+                       -> Box<green::RemoteCallback + Send> {
+        box Async::new_on(self, f).unwrap() as Box<green::RemoteCallback + Send>
+    }
+
+    fn has_active_io(&self) -> bool {
+        true
+        // self.uvio.loop_.get_blockers() > 0
+    }
 }
 
 impl Drop for EventLoop {
@@ -83,42 +163,22 @@ impl Drop for EventLoop {
     }
 }
 
-impl green::EventLoop for EventLoop {
-    fn run(&mut self) {
-        self.uv_loop.run(uvll::RUN_DEFAULT).unwrap();
-    }
+impl Deref<EventLoop> for BorrowedEventLoop {
+    fn deref<'a>(&'a self) -> &'a EventLoop { unsafe { &*self.local } }
+}
 
-    fn callback(&mut self, f: proc()) {
+impl DerefMut<EventLoop> for BorrowedEventLoop {
+    fn deref_mut<'a>(&'a mut self) -> &'a mut EventLoop {
+        unsafe { &mut *self.local }
+    }
+}
+
+#[unsafe_destructor]
+impl Drop for BorrowedEventLoop {
+    fn drop(&mut self) {
         unsafe {
-            let mut idle = raw::Idle::new(&self.uv_loop).unwrap();
-            idle.set_data(mem::transmute(box f));
-            idle.start(onetime).unwrap();
+            local_loop.get(|l| l.unwrap().set(self.local))
         }
-
-        extern fn onetime(handle: *mut uvll::uv_idle_t) {
-            unsafe {
-                let mut idle: raw::Idle = Handle::from_raw(handle);
-                let f: Box<proc()> = mem::transmute(idle.get_data());
-                idle.close_and_free();
-                (*f)();
-            }
-        }
-    }
-
-    fn pausable_idle_callback(&mut self, cb: Box<green::Callback + Send>)
-                              -> Box<green::PausableIdleCallback + Send> {
-        box Idle::new(self, cb).unwrap()
-            as Box<green::PausableIdleCallback + Send>
-    }
-
-    fn remote_callback(&mut self, f: Box<green::Callback + Send>)
-                       -> Box<green::RemoteCallback + Send> {
-        box Async::new(self, f).unwrap() as Box<green::RemoteCallback + Send>
-    }
-
-    fn has_active_io(&self) -> bool {
-        true
-        // self.uvio.loop_.get_blockers() > 0
     }
 }
 

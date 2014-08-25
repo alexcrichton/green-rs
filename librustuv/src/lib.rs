@@ -38,13 +38,14 @@ via `close` and `delete` methods.
 #![doc(html_logo_url = "http://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png",
        html_favicon_url = "http://www.rust-lang.org/favicon.ico")]
 
-#![feature(macro_rules, unsafe_destructor)]
+#![feature(macro_rules, unsafe_destructor, phase)]
 #![allow(visible_private_types)]
 
 #[cfg(test)] extern crate debug;
 #[cfg(test)] extern crate native;
 extern crate green;
 extern crate libc;
+#[phase(plugin, link)] extern crate tls;
 
 use libc::{c_int};
 use std::fmt;
@@ -59,6 +60,7 @@ use std::str;
 pub use event_loop::EventLoop;
 pub use idle::Idle;
 pub use async::Async;
+// pub use timer::Timer;
 
 mod macros;
 #[cfg(test)] mod test;
@@ -75,17 +77,17 @@ pub mod uvll;
 pub mod raw;
 mod event_loop;
 
-// mod file;
-// mod net;
-mod idle;
-// mod timer;
-mod async;
 // mod addrinfo;
-// mod process;
+mod async;
+// mod file;
+mod idle;
+// mod net;
 // mod pipe;
-// mod tty;
+// mod process;
 // mod signal;
 // mod stream;
+// mod timer;
+// mod tty;
 
 // /// Creates a new event loop which is powered by libuv
 // ///

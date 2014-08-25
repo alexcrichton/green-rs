@@ -15,6 +15,8 @@ use green::{Callback, RemoteCallback};
 use {raw, uvll, EventLoop, UvResult};
 use raw::Handle;
 
+/// An asynchronous handle which is used to send notifications to the event
+/// loop.
 pub struct Async { handle: raw::Async }
 
 struct Data {
@@ -25,8 +27,18 @@ struct Data {
 }
 
 impl Async {
-    pub fn new(eloop: &mut EventLoop,
-               cb: Box<Callback + Send>) -> UvResult<Async> {
+    /// Create a new asynchronous handle to the local event loop.
+    ///
+    /// The When this handle is `fire`d, the given callback will be invoked on
+    /// the event loop. This corresponds to `uv_async_t`.
+    pub fn new(cb: Box<Callback + Send>) -> UvResult<Async> {
+        let mut eloop = try!(EventLoop::borrow());
+        Async::new_on(&mut *eloop, cb)
+    }
+
+    /// Same as `new`, but specifies what event loop to be created on.
+    pub fn new_on(eloop: &mut EventLoop,
+                  cb: Box<Callback + Send>) -> UvResult<Async> {
         unsafe {
             let mut ret = Async {
                 handle: try!(raw::Async::new(&eloop.uv_loop(), async_cb)),
@@ -140,7 +152,7 @@ mod test_remote {
 
         let (tx, rx) = channel();
         let cb = box MyCallback(Some(tx));
-        let watcher = Async::new(::test::local_loop(), cb).unwrap();
+        let watcher = Async::new(cb).unwrap();
 
         spawn(proc() {
             let mut watcher = watcher;

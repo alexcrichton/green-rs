@@ -509,6 +509,9 @@ extern {
                           timeout: libc::uint64_t,
                           repeat: libc::uint64_t) -> c_int;
     pub fn uv_timer_stop(handle: *mut uv_timer_t) -> c_int;
+    pub fn uv_timer_set_repeat(handle: *mut uv_timer_t, repeat: u64);
+    pub fn uv_timer_get_repeat(handle: *const uv_timer_t) -> u64;
+    pub fn uv_timer_again(handle: *mut uv_timer_t) -> c_int;
 
     // fs operations
     pub fn uv_fs_open(loop_ptr: *mut uv_loop_t, req: *mut uv_fs_t,

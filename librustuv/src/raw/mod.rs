@@ -16,6 +16,7 @@ use uvll;
 pub use self::async::Async;
 pub use self::idle::Idle;
 pub use self::loop_::Loop;
+pub use self::timer::Timer;
 
 macro_rules! call( ($e:expr) => (
     match $e {
@@ -24,9 +25,10 @@ macro_rules! call( ($e:expr) => (
     }
 ) )
 
-mod loop_;
-mod idle;
 mod async;
+mod idle;
+mod loop_;
+mod timer;
 
 pub trait Allocated {
     fn size(_self: Option<Self>) -> uint;

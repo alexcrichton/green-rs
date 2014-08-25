@@ -18,8 +18,13 @@ pub struct Idle { handle: raw::Idle }
 struct Data { callback: Box<Callback + Send> }
 
 impl Idle {
-    pub fn new(eloop: &mut EventLoop,
-               cb: Box<Callback + Send>) -> UvResult<Idle> {
+    pub fn new(cb: Box<Callback + Send>) -> UvResult<Idle> {
+        let mut eloop = try!(EventLoop::borrow());
+        Idle::new_on(&mut *eloop, cb)
+    }
+
+    pub fn new_on(eloop: &mut EventLoop,
+                  cb: Box<Callback + Send>) -> UvResult<Idle> {
         unsafe {
             let mut ret = Idle { handle: try!(raw::Idle::new(&eloop.uv_loop())) };
             let data = box Data { callback: cb };
@@ -66,7 +71,6 @@ mod test {
     use std::rt::local::Local;
 
     use green::{Callback, PausableIdleCallback};
-    use EventLoop;
     use super::Idle;
 
     type Chan = Rc<RefCell<(Option<BlockedTask>, uint)>>;
@@ -91,12 +95,12 @@ mod test {
         }
     }
 
-    fn mk(v: uint, uv: &mut EventLoop) -> (Idle, Chan) {
+    fn mk(v: uint) -> (Idle, Chan) {
         let rc = Rc::new(RefCell::new((None, 0)));
         let cb = box MyCallback(rc.clone(), v);
         let cb = cb as Box<Callback>;
         let cb = unsafe { mem::transmute(cb) };
-        (Idle::new(uv, cb).unwrap(), rc)
+        (Idle::new(cb).unwrap(), rc)
     }
 
     fn sleep(chan: &Chan) -> uint {
@@ -115,23 +119,23 @@ mod test {
     }
 
     test!(fn not_used() {
-        let (_idle, _chan) = mk(1, ::test::local_loop());
+        let (_idle, _chan) = mk(1);
     })
 
     test!(fn smoke_test() {
-        let (mut idle, chan) = mk(1, ::test::local_loop());
+        let (mut idle, chan) = mk(1);
         idle.resume();
         assert_eq!(sleep(&chan), 1);
     })
 
     test!(fn smoke_drop() {
-        let (mut idle, _chan) = mk(1, ::test::local_loop());
+        let (mut idle, _chan) = mk(1);
         idle.resume();
-        fail!();
+        drop(idle);
     })
 
     test!(fn fun_combinations_of_methods() {
-        let (mut idle, chan) = mk(1, ::test::local_loop());
+        let (mut idle, chan) = mk(1);
         idle.resume();
         assert_eq!(sleep(&chan), 1);
         idle.pause();
@@ -145,8 +149,8 @@ mod test {
     })
 
     test!(fn pause_pauses() {
-        let (mut idle1, chan1) = mk(1, ::test::local_loop());
-        let (mut idle2, chan2) = mk(2, ::test::local_loop());
+        let (mut idle1, chan1) = mk(1);
+        let (mut idle2, chan2) = mk(2);
         idle2.resume();
         assert_eq!(sleep(&chan2), 2);
         idle2.pause();
