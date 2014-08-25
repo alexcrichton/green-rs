@@ -8,61 +8,97 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use libc::c_int;
-use std::rt::rtio::{RtioSignal, Callback};
+use std::mem;
+use libc;
 
+use green::Callback;
+
+use {raw, uvll, EventLoop, UvResult};
+use raw::Handle;
 use homing::{HomingIO, HomeHandle};
-use super::{UvError, UvHandle};
-use uvll;
-use uvio::UvIoFactory;
 
-pub struct SignalWatcher {
-    handle: *mut uvll::uv_signal_t,
+pub struct Signal {
+    handle: raw::Signal,
     home: HomeHandle,
-
-    cb: Box<Callback + Send>,
 }
 
-impl SignalWatcher {
-    pub fn new(io: &mut UvIoFactory, signum: int, cb: Box<Callback + Send>)
-               -> Result<Box<SignalWatcher>, UvError> {
-        let s = box SignalWatcher {
-            handle: UvHandle::alloc(None::<SignalWatcher>, uvll::UV_SIGNAL),
-            home: io.make_handle(),
-            cb: cb,
-        };
-        assert_eq!(unsafe {
-            uvll::uv_signal_init(io.uv_loop(), s.handle)
-        }, 0);
+struct Data {
+    callback: Option<Box<Callback + Send>>,
+}
 
-        match unsafe {
-            uvll::uv_signal_start(s.handle, signal_cb, signum as c_int)
-        } {
-            0 => Ok(s.install()),
-            n => Err(UvError(n)),
+impl Signal {
+    pub fn new() -> UvResult<Signal> {
+        Signal::new_on(&mut *try!(EventLoop::borrow()))
+    }
+
+    pub fn new_on(eloop: &mut EventLoop) -> UvResult<Signal> {
+        unsafe {
+            let mut ret = Signal {
+                handle: try!(raw::Signal::new(&eloop.uv_loop())),
+                home: eloop.make_handle(),
+            };
+            let data = box Data { callback: None };
+            ret.handle.set_data(mem::transmute(data));
+            Ok(ret)
         }
+    }
 
+    /// Attempts to start listening for the signal `signal`.
+    ///
+    /// When the process receives the specified signal, the callback `cb` will
+    /// be invoked on the event loop. This function will cancel any previous
+    /// signal being listened for.
+    ///
+    /// For more information, see `uv_signal_start`.
+    pub fn start(&mut self, signal: libc::c_int,
+                 cb: Box<Callback + Send>) -> UvResult<()> {
+        // Be sure to run user destructors outside the homing missile, not
+        // inside.
+        let _prev = {
+            let _m = self.fire_homing_missile();
+            try!(self.handle.start(signal, signal_cb));
+            let data: &mut Data = unsafe {
+                mem::transmute(self.handle.get_data())
+            };
+            mem::replace(&mut data.callback, Some(cb))
+        };
+        Ok(())
+    }
+
+    /// Stop listening for the signal previously registered in `start`.
+    pub fn stop(&mut self) -> UvResult<()> {
+        let _prev = {
+            let _m = self.fire_homing_missile();
+            try!(self.handle.stop());
+            let data: &mut Data = unsafe {
+                mem::transmute(self.handle.get_data())
+            };
+            data.callback.take()
+        };
+        Ok(())
     }
 }
 
-extern fn signal_cb(handle: *mut uvll::uv_signal_t, _signum: c_int) {
-    let s: &mut SignalWatcher = unsafe { UvHandle::from_uv_handle(&handle) };
-    let _ = s.cb.call();
+extern fn signal_cb(handle: *mut uvll::uv_signal_t, _signum: libc::c_int) {
+    unsafe {
+        let raw: raw::Signal = Handle::from_raw(handle);
+        let data: &mut Data = mem::transmute(raw.get_data());
+        assert!(data.callback.is_some());
+        data.callback.as_mut().unwrap().call();
+    }
 }
 
-impl HomingIO for SignalWatcher {
+impl HomingIO for Signal {
     fn home<'r>(&'r mut self) -> &'r mut HomeHandle { &mut self.home }
 }
 
-impl UvHandle<uvll::uv_signal_t> for SignalWatcher {
-    fn uv_handle(&self) -> *mut uvll::uv_signal_t { self.handle }
-}
-
-impl RtioSignal for SignalWatcher {}
-
-impl Drop for SignalWatcher {
+impl Drop for Signal {
     fn drop(&mut self) {
-        let _m = self.fire_homing_missile();
-        self.close();
+        let _data: Box<Data> = unsafe {
+            let _m = self.fire_homing_missile();
+            self.handle.stop().unwrap();
+            self.handle.close_and_free();
+            mem::transmute(self.handle.get_data())
+        };
     }
 }

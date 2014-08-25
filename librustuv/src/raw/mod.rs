@@ -18,6 +18,7 @@ pub use self::fs::Fs;
 pub use self::getaddrinfo::GetAddrInfo;
 pub use self::idle::Idle;
 pub use self::loop_::Loop;
+pub use self::signal::Signal;
 pub use self::timer::Timer;
 
 macro_rules! call( ($e:expr) => (
@@ -32,6 +33,7 @@ mod fs;
 mod getaddrinfo;
 mod idle;
 mod loop_;
+mod signal;
 mod timer;
 
 pub trait Allocated {

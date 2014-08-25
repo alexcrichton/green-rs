@@ -1,5 +1,6 @@
 #![feature(macro_rules)]
 
+extern crate libc;
 extern crate green;
 extern crate rustuv;
 
@@ -25,6 +26,7 @@ mod async;
 mod event_loop;
 mod fs;
 mod idle;
+mod signal;
 mod timer;
 
 struct SchedulerExiter { handle: SchedHandle }

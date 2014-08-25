@@ -60,6 +60,7 @@ pub use async::Async;
 pub use event_loop::EventLoop;
 pub use fs::File;
 pub use idle::Idle;
+pub use signal::Signal;
 pub use timer::Timer;
 
 mod macros;
@@ -83,7 +84,7 @@ mod idle;
 mod net;
 // mod pipe;
 // mod process;
-// mod signal;
+mod signal;
 // mod stream;
 mod timer;
 // mod tty;
