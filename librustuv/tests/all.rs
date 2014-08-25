@@ -23,6 +23,7 @@ macro_rules! test( (fn $name:ident() $b:block) => (
 mod addrinfo;
 mod async;
 mod event_loop;
+mod fs;
 mod idle;
 mod timer;
 

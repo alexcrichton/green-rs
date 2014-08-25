@@ -38,7 +38,7 @@ use libc::uintptr_t;
 
 pub use self::errors::{EACCES, ECONNREFUSED, ECONNRESET, EPIPE, ECONNABORTED,
                        ECANCELED, EBADF, ENOTCONN, ENOENT, EADDRNOTAVAIL,
-                       EADDRINUSE, EPERM};
+                       EADDRINUSE, EPERM, EINVAL};
 
 pub static OK: c_int = 0;
 pub static EOF: c_int = -4095;
@@ -63,6 +63,7 @@ pub mod errors {
     pub static EADDRNOTAVAIL: c_int = -4090;
     pub static EADDRINUSE: c_int = -4091;
     pub static EPERM: c_int = -4048;
+    pub static EINVAL: c_int = -4071;
 }
 
 #[cfg(not(windows))]
@@ -82,6 +83,7 @@ pub mod errors {
     pub static EADDRNOTAVAIL : c_int = -libc::EADDRNOTAVAIL;
     pub static EADDRINUSE : c_int = -libc::EADDRINUSE;
     pub static EPERM: c_int = -libc::EPERM;
+    pub static EINVAL: c_int = -libc::EINVAL;
 }
 
 pub static PROCESS_SETUID: c_int = 1 << 0;
@@ -403,7 +405,7 @@ extern {
                                     stat_out: *mut uv_stat_t);
     pub fn rust_uv_get_result_from_fs_req(req: *mut uv_fs_t) -> ssize_t;
     pub fn rust_uv_get_ptr_from_fs_req(req: *mut uv_fs_t) -> *mut libc::c_void;
-    pub fn rust_uv_get_path_from_fs_req(req: *mut uv_fs_t) -> *mut c_char;
+    pub fn rust_uv_get_path_from_fs_req(req: *mut uv_fs_t) -> *const c_char;
     pub fn rust_uv_get_loop_from_fs_req(req: *mut uv_fs_t) -> *mut uv_loop_t;
     pub fn rust_uv_get_loop_from_getaddrinfo_req(req: *mut uv_fs_t)
                                                  -> *mut uv_loop_t;
@@ -524,7 +526,7 @@ extern {
                        bufs: *const uv_buf_t, nbufs: c_uint,
                        offset: i64, cb: uv_fs_cb) -> c_int;
     pub fn uv_fs_read(l: *mut uv_loop_t, req: *mut uv_fs_t, fd: c_int,
-                      bufs: *mut uv_buf_t, nbufs: c_uint,
+                      bufs: *const uv_buf_t, nbufs: c_uint,
                       offset: i64, cb: uv_fs_cb) -> c_int;
     pub fn uv_fs_close(l: *mut uv_loop_t, req: *mut uv_fs_t, fd: c_int,
                        cb: uv_fs_cb) -> c_int;

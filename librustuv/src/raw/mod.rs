@@ -14,6 +14,7 @@ use libc;
 use {uvll, UvResult};
 
 pub use self::async::Async;
+pub use self::fs::Fs;
 pub use self::getaddrinfo::GetAddrInfo;
 pub use self::idle::Idle;
 pub use self::loop_::Loop;
@@ -27,6 +28,7 @@ macro_rules! call( ($e:expr) => (
 ) )
 
 mod async;
+mod fs;
 mod getaddrinfo;
 mod idle;
 mod loop_;

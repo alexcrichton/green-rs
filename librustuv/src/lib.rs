@@ -47,20 +47,18 @@ extern crate green;
 extern crate libc;
 #[phase(plugin, link)] extern crate tls;
 
-use libc::{c_int};
 use std::fmt;
-use std::task;
-// use std::mem;
-// use std::ptr;
+use std::io;
 use std::rt::local::Local;
-// use std::rt::rtio::{IoResult, IoError};
 use std::rt::task::{BlockedTask, Task};
 use std::str;
-// use std::task;
+use std::task;
+use libc::c_int;
 
 pub use addrinfo::get_host_addresses;
 pub use async::Async;
 pub use event_loop::EventLoop;
+pub use fs::File;
 pub use idle::Idle;
 pub use timer::Timer;
 
@@ -72,7 +70,6 @@ pub mod homing;
 mod queue;
 // mod rc;
 
-// mod uvio;
 pub mod uvll;
 
 pub mod raw;
@@ -81,6 +78,7 @@ mod event_loop;
 mod addrinfo;
 mod async;
 // mod file;
+pub mod fs;
 mod idle;
 mod net;
 // mod pipe;
@@ -369,6 +367,41 @@ impl UvError {
 
     /// Gain access to the raw code in this error
     pub fn code(&self) -> c_int { let UvError(code) = *self; code }
+
+    /// Convert this libuv-based error to a std IoError instance
+    #[cfg(unix)]
+    pub fn to_io_error(&self) -> io::IoError {
+        let code = if self.code() == uvll::EOF {
+            libc::EOF as uint
+        } else {
+            -self.code() as uint
+        };
+        io::IoError::from_errno(code, true)
+    }
+
+    #[cfg(windows)]
+    pub fn to_io_error(&self) -> io::IoError {
+        let code = match self.code() {
+            uvll::EOF => libc::EOF,
+            uvll::EACCES => libc::ERROR_ACCESS_DENIED,
+            uvll::ECONNREFUSED => libc::WSAECONNREFUSED,
+            uvll::ECONNRESET => libc::WSAECONNRESET,
+            uvll::ENOTCONN => libc::WSAENOTCONN,
+            uvll::ENOENT => libc::ERROR_FILE_NOT_FOUND,
+            uvll::EPIPE => libc::ERROR_NO_DATA,
+            uvll::ECONNABORTED => libc::WSAECONNABORTED,
+            uvll::EADDRNOTAVAIL => libc::WSAEADDRNOTAVAIL,
+            uvll::ECANCELED => libc::ERROR_OPERATION_ABORTED,
+            uvll::EADDRINUSE => libc::WSAEADDRINUSE,
+            uvll::EPERM => libc::ERROR_ACCESS_DENIED,
+            err => {
+                uvdebug!("uverr.code {}", err as int);
+                // FIXME: Need to map remaining uv error types
+                -1
+            }
+        };
+        io::IoError::from_errno(code, true)
+    }
 }
 
 impl fmt::Show for UvError {
