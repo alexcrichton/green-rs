@@ -12,17 +12,18 @@
 use libc;
 use std::mem;
 // use std::ptr;
+// use std::rt::rtio;
 // use std::rt::rtio::IoError;
 // use std::rt::task::BlockedTask;
 use std::io::net::ip;
-//
+
 // use homing::{HomingIO, HomeHandle};
 // use rc::Refcount;
 // use stream::StreamWatcher;
 // use super::{Loop, Request, UvError, Buf, status_to_io_result,
 //             uv_error_to_io_error, UvHandle, slice_to_uv_buf,
 //             wait_until_woken_after, wakeup};
-// use timeout::{AccessTimeout, AcceptTimeout, ConnectCtx};
+// use timeout::{AccessTimeout, ConnectCtx, AcceptTimeout};
 // use uvio::UvIoFactory;
 // use uvll;
 
@@ -31,92 +32,7 @@ use std::io::net::ip;
 ////////////////////////////////////////////////////////////////////////////////
 
 // pub fn htons(u: u16) -> u16 { u.to_be() }
-pub fn ntohs(u: u16) -> u16 { Int::from_be(u) }
-
-pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
-                        len: uint) -> ip::SocketAddr {
-    match storage.ss_family as libc::c_int {
-        libc::AF_INET => {
-            assert!(len as uint >= mem::size_of::<libc::sockaddr_in>());
-            let storage: &libc::sockaddr_in = unsafe {
-                mem::transmute(storage)
-            };
-            let ip = (storage.sin_addr.s_addr as u32).to_be();
-            let a = (ip >> 24) as u8;
-            let b = (ip >> 16) as u8;
-            let c = (ip >>  8) as u8;
-            let d = (ip >>  0) as u8;
-            ip::SocketAddr {
-                ip: ip::Ipv4Addr(a, b, c, d),
-                port: ntohs(storage.sin_port),
-            }
-        }
-        libc::AF_INET6 => {
-            assert!(len as uint >= mem::size_of::<libc::sockaddr_in6>());
-            let storage: &libc::sockaddr_in6 = unsafe {
-                mem::transmute(storage)
-            };
-            let a = ntohs(storage.sin6_addr.s6_addr[0]);
-            let b = ntohs(storage.sin6_addr.s6_addr[1]);
-            let c = ntohs(storage.sin6_addr.s6_addr[2]);
-            let d = ntohs(storage.sin6_addr.s6_addr[3]);
-            let e = ntohs(storage.sin6_addr.s6_addr[4]);
-            let f = ntohs(storage.sin6_addr.s6_addr[5]);
-            let g = ntohs(storage.sin6_addr.s6_addr[6]);
-            let h = ntohs(storage.sin6_addr.s6_addr[7]);
-            ip::SocketAddr {
-                ip: ip::Ipv6Addr(a, b, c, d, e, f, g, h),
-                port: ntohs(storage.sin6_port),
-            }
-        }
-        n => {
-            fail!("unknown family {}", n);
-        }
-    }
-}
-
-// fn addr_to_sockaddr(addr: rtio::SocketAddr,
-//                     storage: &mut libc::sockaddr_storage)
-//                     -> libc::socklen_t {
-//     unsafe {
-//         let len = match addr.ip {
-//             rtio::Ipv4Addr(a, b, c, d) => {
-//                 let ip = (a as u32 << 24) |
-//                          (b as u32 << 16) |
-//                          (c as u32 <<  8) |
-//                          (d as u32 <<  0);
-//                 let storage = storage as *mut _ as *mut libc::sockaddr_in;
-//                 (*storage).sin_family = libc::AF_INET as libc::sa_family_t;
-//                 (*storage).sin_port = htons(addr.port);
-//                 (*storage).sin_addr = libc::in_addr {
-//                     s_addr: Int::from_be(ip),
 //
-//                 };
-//                 mem::size_of::<libc::sockaddr_in>()
-//             }
-//             rtio::Ipv6Addr(a, b, c, d, e, f, g, h) => {
-//                 let storage = storage as *mut _ as *mut libc::sockaddr_in6;
-//                 (*storage).sin6_family = libc::AF_INET6 as libc::sa_family_t;
-//                 (*storage).sin6_port = htons(addr.port);
-//                 (*storage).sin6_addr = libc::in6_addr {
-//                     s6_addr: [
-//                         htons(a),
-//                         htons(b),
-//                         htons(c),
-//                         htons(d),
-//                         htons(e),
-//                         htons(f),
-//                         htons(g),
-//                         htons(h),
-//                     ]
-//                 };
-//                 mem::size_of::<libc::sockaddr_in6>()
-//             }
-//         };
-//         return len as libc::socklen_t
-//     }
-// }
-
 // enum SocketNameKind {
 //     TcpPeer,
 //     Tcp,
@@ -158,20 +74,20 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 //     // stream object, so we use these access guards in order to arbitrate among
 //     // multiple concurrent reads and writes. Note that libuv *can* read and
 //     // write simultaneously, it just can't read and read simultaneously.
-//     read_access: AccessTimeout,
-//     write_access: AccessTimeout,
+//     read_access: AccessTimeout<()>,
+//     write_access: AccessTimeout<()>,
 // }
 //
 // pub struct TcpListener {
 //     home: HomeHandle,
-//     handle: *mut uvll::uv_pipe_t,
-//     outgoing: Sender<Result<Box<rtio::RtioTcpStream + Send>, IoError>>,
-//     incoming: Receiver<Result<Box<rtio::RtioTcpStream + Send>, IoError>>,
+//     handle: *mut uvll::uv_tcp_t,
 // }
 //
 // pub struct TcpAcceptor {
-//     listener: Box<TcpListener>,
-//     timeout: AcceptTimeout,
+//     home: HomeHandle,
+//     handle: *mut uvll::uv_tcp_t,
+//     access: AcceptTimeout<Box<rtio::RtioTcpStream + Send>>,
+//     refcount: Refcount,
 // }
 //
 // // TCP watchers (clients/streams)
@@ -192,8 +108,8 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 //             handle: handle,
 //             stream: StreamWatcher::new(handle, true),
 //             refcount: Refcount::new(),
-//             read_access: AccessTimeout::new(),
-//             write_access: AccessTimeout::new(),
+//             read_access: AccessTimeout::new(()),
+//             write_access: AccessTimeout::new(()),
 //         }
 //     }
 //
@@ -291,7 +207,7 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 //         let task = {
 //             let m = self.fire_homing_missile();
 //             self.read_access.access.close(&m);
-//     self.stream.cancel_read(uvll::EOF as libc::ssize_t)
+//             self.stream.cancel_read(uvll::EOF as libc::ssize_t)
 //         };
 //         let _ = task.map(|t| t.reawaken());
 //         Ok(())
@@ -354,12 +270,9 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 //         assert_eq!(unsafe {
 //             uvll::uv_tcp_init(io.uv_loop(), handle)
 //         }, 0);
-//         let (tx, rx) = channel();
 //         let l = box TcpListener {
 //             home: io.make_handle(),
 //             handle: handle,
-//             outgoing: tx,
-//             incoming: rx,
 //         };
 //         let mut storage = unsafe { mem::zeroed() };
 //         let _len = addr_to_sockaddr(address, &mut storage);
@@ -390,17 +303,21 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 // }
 //
 // impl rtio::RtioTcpListener for TcpListener {
-//     fn listen(self: Box<TcpListener>)
+//     fn listen(mut self: Box<TcpListener>)
 //               -> Result<Box<rtio::RtioTcpAcceptor + Send>, IoError> {
-//         // create the acceptor object from ourselves
-//         let mut acceptor = box TcpAcceptor {
-//             listener: self,
-//             timeout: AcceptTimeout::new(),
-//         };
+//         let _m = self.fire_homing_missile();
 //
-//         let _m = acceptor.fire_homing_missile();
+//         // create the acceptor object from ourselves
+//         let acceptor = (box TcpAcceptor {
+//             handle: self.handle,
+//             home: self.home.clone(),
+//             access: AcceptTimeout::new(),
+//             refcount: Refcount::new(),
+//         }).install();
+//         self.handle = 0 as *mut _;
+//
 //         // FIXME: the 128 backlog should be configurable
-//         match unsafe { uvll::uv_listen(acceptor.listener.handle, 128, listen_cb) } {
+//         match unsafe { uvll::uv_listen(acceptor.handle, 128, listen_cb) } {
 //             0 => Ok(acceptor as Box<rtio::RtioTcpAcceptor + Send>),
 //             n => Err(uv_error_to_io_error(UvError(n))),
 //         }
@@ -409,7 +326,7 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 //
 // extern fn listen_cb(server: *mut uvll::uv_stream_t, status: c_int) {
 //     assert!(status != uvll::ECANCELED);
-//     let tcp: &mut TcpListener = unsafe { UvHandle::from_uv_handle(&server) };
+//     let tcp: &mut TcpAcceptor = unsafe { UvHandle::from_uv_handle(&server) };
 //     let msg = match status {
 //         0 => {
 //             let loop_ = Loop::wrap(unsafe {
@@ -421,11 +338,15 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 //         }
 //         n => Err(uv_error_to_io_error(UvError(n)))
 //     };
-//     tcp.outgoing.send(msg);
+//
+//     // If we're running then we have exclusive access, so the unsafe_get() is ok
+//     unsafe { tcp.access.push(msg); }
 // }
 //
 // impl Drop for TcpListener {
 //     fn drop(&mut self) {
+//         if self.handle.is_null() { return }
+//
 //         let _m = self.fire_homing_missile();
 //         self.close();
 //     }
@@ -434,40 +355,68 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 // // TCP acceptors (bound servers)
 //
 // impl HomingIO for TcpAcceptor {
-//     fn home<'r>(&'r mut self) -> &'r mut HomeHandle { self.listener.home() }
+//     fn home<'r>(&'r mut self) -> &'r mut HomeHandle { &mut self.home }
 // }
 //
 // impl rtio::RtioSocket for TcpAcceptor {
 //     fn socket_name(&mut self) -> Result<rtio::SocketAddr, IoError> {
 //         let _m = self.fire_homing_missile();
-//         socket_name(Tcp, self.listener.handle)
+//         socket_name(Tcp, self.handle)
 //     }
+// }
+//
+// impl UvHandle<uvll::uv_tcp_t> for TcpAcceptor {
+//     fn uv_handle(&self) -> *mut uvll::uv_tcp_t { self.handle }
 // }
 //
 // impl rtio::RtioTcpAcceptor for TcpAcceptor {
 //     fn accept(&mut self) -> Result<Box<rtio::RtioTcpStream + Send>, IoError> {
-//         self.timeout.accept(&self.listener.incoming)
+//         let m = self.fire_homing_missile();
+//         let loop_ = self.uv_loop();
+//         self.access.accept(m, &loop_)
 //     }
 //
 //     fn accept_simultaneously(&mut self) -> Result<(), IoError> {
 //         let _m = self.fire_homing_missile();
 //         status_to_io_result(unsafe {
-//             uvll::uv_tcp_simultaneous_accepts(self.listener.handle, 1)
+//             uvll::uv_tcp_simultaneous_accepts(self.handle, 1)
 //         })
 //     }
 //
 //     fn dont_accept_simultaneously(&mut self) -> Result<(), IoError> {
 //         let _m = self.fire_homing_missile();
 //         status_to_io_result(unsafe {
-//             uvll::uv_tcp_simultaneous_accepts(self.listener.handle, 0)
+//             uvll::uv_tcp_simultaneous_accepts(self.handle, 0)
 //         })
 //     }
 //
 //     fn set_timeout(&mut self, ms: Option<u64>) {
 //         let _m = self.fire_homing_missile();
-//         match ms {
-//             None => self.timeout.clear(),
-//             Some(ms) => self.timeout.set_timeout(ms, &mut *self.listener),
+//         let loop_ = self.uv_loop();
+//         self.access.set_timeout(ms, &loop_, &self.home);
+//     }
+//
+//     fn clone(&self) -> Box<rtio::RtioTcpAcceptor + Send> {
+//         box TcpAcceptor {
+//             refcount: self.refcount.clone(),
+//             home: self.home.clone(),
+//             handle: self.handle,
+//             access: self.access.clone(),
+//         } as Box<rtio::RtioTcpAcceptor + Send>
+//     }
+//
+//     fn close_accept(&mut self) -> Result<(), IoError> {
+//         let m = self.fire_homing_missile();
+//         self.access.close(m);
+//         Ok(())
+//     }
+// }
+//
+// impl Drop for TcpAcceptor {
+//     fn drop(&mut self) {
+//         let _m = self.fire_homing_missile();
+//         if self.refcount.decrement() {
+//             self.close();
 //         }
 //     }
 // }
@@ -482,8 +431,8 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 //
 //     // See above for what these fields are
 //     refcount: Refcount,
-//     read_access: AccessTimeout,
-//     write_access: AccessTimeout,
+//     read_access: AccessTimeout<()>,
+//     write_access: AccessTimeout<()>,
 //
 //     blocked_sender: Option<BlockedTask>,
 // }
@@ -507,8 +456,8 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 //             handle: unsafe { uvll::malloc_handle(uvll::UV_UDP) },
 //             home: io.make_handle(),
 //             refcount: Refcount::new(),
-//             read_access: AccessTimeout::new(),
-//             write_access: AccessTimeout::new(),
+//             read_access: AccessTimeout::new(()),
+//             write_access: AccessTimeout::new(()),
 //             blocked_sender: None,
 //         };
 //         assert_eq!(unsafe {
@@ -840,7 +789,7 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 //         wakeup(&mut cx.slot);
 //     }
 // }
-
+//
 // #[cfg(test)]
 // mod test {
 //     use std::rt::rtio::{RtioTcpStream, RtioTcpListener, RtioTcpAcceptor,
@@ -853,7 +802,7 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 //     fn connect_close_ip4() {
 //         match TcpWatcher::connect(local_loop(), ::next_test_ip4(), None) {
 //             Ok(..) => fail!(),
-//             Err(e) => assert_eq!(e.name(), "ECONNREFUSED"),
+//             Err(e) => assert_eq!(e.name(), "ECONNREFUSED".to_string()),
 //         }
 //     }
 //
@@ -861,7 +810,7 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
 //     fn connect_close_ip6() {
 //         match TcpWatcher::connect(local_loop(), ::next_test_ip6(), None) {
 //             Ok(..) => fail!(),
-//             Err(e) => assert_eq!(e.name(), "ECONNREFUSED"),
+//             Err(e) => assert_eq!(e.name(), "ECONNREFUSED".to_string()),
 //         }
 //     }
 //
