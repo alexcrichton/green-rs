@@ -127,8 +127,7 @@ impl green::EventLoop for EventLoop {
     }
 
     fn has_active_io(&self) -> bool {
-        true
-        // self.uvio.loop_.get_blockers() > 0
+        unsafe { self.uv_loop().get_data() as uint > 0 }
     }
 }
 
