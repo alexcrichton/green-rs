@@ -26,6 +26,8 @@ pub use self::signal::Signal;
 pub use self::tcp::Tcp;
 pub use self::timer::Timer;
 pub use self::tty::Tty;
+pub use self::udp::Udp;
+pub use self::udp_send::UdpSend;
 pub use self::write::Write;
 
 macro_rules! call( ($e:expr) => (
@@ -46,6 +48,8 @@ mod signal;
 mod tcp;
 mod timer;
 mod tty;
+mod udp;
+mod udp_send;
 mod write;
 
 pub trait Allocated {

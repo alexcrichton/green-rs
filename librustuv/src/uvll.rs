@@ -486,6 +486,7 @@ extern {
 
     // udp bindings
     pub fn uv_udp_init(l: *mut uv_loop_t, h: *mut uv_udp_t) -> c_int;
+    pub fn uv_udp_open(h: *mut uv_udp_t, sock: uv_os_socket_t) -> c_int;
     pub fn uv_udp_bind(h: *mut uv_udp_t, addr: *const sockaddr,
                        flags: c_uint) -> c_int;
     pub fn uv_udp_recv_start(server: *mut uv_udp_t,
@@ -506,6 +507,10 @@ extern {
                        buf_in: *const uv_buf_t, buf_cnt: c_int,
                        addr: *const sockaddr,
                        cb: uv_udp_send_cb) -> c_int;
+    pub fn uv_udp_try_send(handle: *mut uv_udp_t,
+                           bufs: *const uv_buf_t,
+                           nbufs: c_uint,
+                           addr: *const sockaddr) -> c_int;
 
     // timer bindings
     pub fn uv_timer_init(l: *mut uv_loop_t, t: *mut uv_timer_t) -> c_int;
