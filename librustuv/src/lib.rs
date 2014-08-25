@@ -62,6 +62,7 @@ pub use fs::File;
 pub use idle::Idle;
 pub use signal::Signal;
 pub use timer::Timer;
+pub use tty::Tty;
 
 mod macros;
 
@@ -85,9 +86,9 @@ mod net;
 // mod pipe;
 // mod process;
 mod signal;
-// mod stream;
+mod stream;
 mod timer;
-// mod tty;
+mod tty;
 
 // /// Creates a new event loop which is powered by libuv
 // ///

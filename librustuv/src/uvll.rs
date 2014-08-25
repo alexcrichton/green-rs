@@ -602,6 +602,7 @@ extern {
     pub fn uv_tty_get_winsize(tty: *mut uv_tty_t,
                               width: *mut c_int,
                               height: *mut c_int) -> c_int;
+    pub fn uv_tty_reset_mode() -> c_int;
 
     // signals
     pub fn uv_signal_init(loop_: *mut uv_loop_t,

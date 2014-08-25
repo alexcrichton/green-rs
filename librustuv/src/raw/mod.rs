@@ -20,6 +20,8 @@ pub use self::idle::Idle;
 pub use self::loop_::Loop;
 pub use self::signal::Signal;
 pub use self::timer::Timer;
+pub use self::tty::Tty;
+pub use self::write::Write;
 
 macro_rules! call( ($e:expr) => (
     match $e {
@@ -35,6 +37,8 @@ mod idle;
 mod loop_;
 mod signal;
 mod timer;
+mod tty;
+mod write;
 
 pub trait Allocated {
     fn size(_self: Option<Self>) -> uint;
@@ -134,6 +138,40 @@ pub trait Request<T: Allocated> {
     unsafe fn free(&mut self) { drop(Raw::wrap(self.raw())) }
 }
 
+pub trait Stream<T: Allocated>: Handle<T> {
+    fn listen(&mut self, backlog: libc::c_int,
+              cb: uvll::uv_connection_cb) -> UvResult<()> {
+        unsafe {
+            try!(call!(uvll::uv_listen(self.raw() as *mut _, backlog, cb)));
+            Ok(())
+        }
+    }
+
+    fn accept(&mut self, other: &mut Self) -> UvResult<()> {
+        unsafe {
+            try!(call!(uvll::uv_accept(self.raw() as *mut _,
+                                       other.raw() as *mut _)));
+            Ok(())
+        }
+    }
+
+    fn read_start(&mut self, alloc_cb: uvll::uv_alloc_cb,
+                  read_cb: uvll::uv_read_cb) -> UvResult<()> {
+        unsafe {
+            try!(call!(uvll::uv_read_start(self.raw() as *mut _, alloc_cb,
+                                           read_cb)));
+            Ok(())
+        }
+    }
+
+    fn read_stop(&mut self) -> UvResult<()> {
+        unsafe {
+            try!(call!(uvll::uv_read_stop(self.raw() as *mut _)));
+            Ok(())
+        }
+    }
+}
+
 impl<T: Allocated> Raw<T> {
     /// Allocates a new instance of the underlying pointer.
     fn new() -> Raw<T> {
@@ -169,4 +207,9 @@ impl<T: Allocated> Drop for Raw<T> {
             heap::deallocate(self.ptr as *mut u8, size as uint, 8)
         }
     }
+}
+
+pub fn slice_to_uv_buf(v: &[u8]) -> uvll::uv_buf_t {
+    let data = v.as_ptr();
+    uvll::uv_buf_t { base: data as *mut u8, len: v.len() as uvll::uv_buf_len_t }
 }

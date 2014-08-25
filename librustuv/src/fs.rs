@@ -72,6 +72,15 @@ impl File {
         })
     }
 
+    /// Create a new `File` object for the specified descriptor.
+    ///
+    /// This function is unsafe as there is no knowledge of whether the file
+    /// descriptor is a file or whether it is compatible with libuv. The file
+    /// descriptor will be closed when the returned object goes out of scope.
+    pub unsafe fn wrap(fd: libc::c_int, path: &Path) -> File {
+        File { path: path.clone(), fd: fd }
+    }
+
     pub fn path(&self) -> &Path { &self.path }
 
     pub fn fsync(&self) -> UvResult<()> {
