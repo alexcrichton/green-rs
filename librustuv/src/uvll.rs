@@ -469,6 +469,7 @@ extern {
 
     // tcp bindings
     pub fn uv_tcp_init(l: *mut uv_loop_t, h: *mut uv_tcp_t) -> c_int;
+    pub fn uv_tcp_open(h: *mut uv_tcp_t, sock: uv_os_socket_t) -> c_int;
     pub fn uv_tcp_connect(c: *mut uv_connect_t, h: *mut uv_tcp_t,
                           addr: *const sockaddr, cb: uv_connect_cb) -> c_int;
     pub fn uv_tcp_bind(t: *mut uv_tcp_t,

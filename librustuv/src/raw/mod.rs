@@ -9,16 +9,21 @@
 // except according to those terms.
 
 use std::rt::heap;
+use std::mem;
+use std::io::net::ip;
 use libc;
 
 use {uvll, UvResult};
 
 pub use self::async::Async;
+pub use self::connect::Connect;
 pub use self::fs::Fs;
 pub use self::getaddrinfo::GetAddrInfo;
 pub use self::idle::Idle;
 pub use self::loop_::Loop;
+pub use self::pipe::Pipe;
 pub use self::signal::Signal;
+pub use self::tcp::Tcp;
 pub use self::timer::Timer;
 pub use self::tty::Tty;
 pub use self::write::Write;
@@ -31,11 +36,14 @@ macro_rules! call( ($e:expr) => (
 ) )
 
 mod async;
+mod connect;
 mod fs;
 mod getaddrinfo;
 mod idle;
 mod loop_;
+mod pipe;
 mod signal;
+mod tcp;
 mod timer;
 mod tty;
 mod write;
@@ -212,4 +220,108 @@ impl<T: Allocated> Drop for Raw<T> {
 pub fn slice_to_uv_buf(v: &[u8]) -> uvll::uv_buf_t {
     let data = v.as_ptr();
     uvll::uv_buf_t { base: data as *mut u8, len: v.len() as uvll::uv_buf_len_t }
+}
+
+fn socket_name<T>(handle: *const T,
+                  f: unsafe extern fn(*const T, *mut libc::sockaddr,
+                                      *mut libc::c_int) -> libc::c_int)
+                  -> UvResult<ip::SocketAddr> {
+    // Allocate a sockaddr_storage since we don't know if it's ipv4 or ipv6
+    let mut sockaddr: libc::sockaddr_storage = unsafe { mem::zeroed() };
+    let mut namelen = mem::size_of::<libc::sockaddr_storage>() as libc::c_int;
+
+    let sockaddr_p = &mut sockaddr as *mut libc::sockaddr_storage;
+    unsafe {
+        try!(call!(f(&*handle, sockaddr_p as *mut _, &mut namelen)));
+    }
+    Ok(sockaddr_to_addr(&sockaddr, namelen as uint))
+}
+
+
+pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
+                        len: uint) -> ip::SocketAddr {
+    fn ntohs(u: u16) -> u16 { Int::from_be(u) }
+
+    match storage.ss_family as libc::c_int {
+        libc::AF_INET => {
+            assert!(len as uint >= mem::size_of::<libc::sockaddr_in>());
+            let storage: &libc::sockaddr_in = unsafe {
+                mem::transmute(storage)
+            };
+            let ip = (storage.sin_addr.s_addr as u32).to_be();
+            let a = (ip >> 24) as u8;
+            let b = (ip >> 16) as u8;
+            let c = (ip >>  8) as u8;
+            let d = (ip >>  0) as u8;
+            ip::SocketAddr {
+                ip: ip::Ipv4Addr(a, b, c, d),
+                port: ntohs(storage.sin_port),
+            }
+        }
+        libc::AF_INET6 => {
+            assert!(len as uint >= mem::size_of::<libc::sockaddr_in6>());
+            let storage: &libc::sockaddr_in6 = unsafe {
+                mem::transmute(storage)
+            };
+            let a = ntohs(storage.sin6_addr.s6_addr[0]);
+            let b = ntohs(storage.sin6_addr.s6_addr[1]);
+            let c = ntohs(storage.sin6_addr.s6_addr[2]);
+            let d = ntohs(storage.sin6_addr.s6_addr[3]);
+            let e = ntohs(storage.sin6_addr.s6_addr[4]);
+            let f = ntohs(storage.sin6_addr.s6_addr[5]);
+            let g = ntohs(storage.sin6_addr.s6_addr[6]);
+            let h = ntohs(storage.sin6_addr.s6_addr[7]);
+            ip::SocketAddr {
+                ip: ip::Ipv6Addr(a, b, c, d, e, f, g, h),
+                port: ntohs(storage.sin6_port),
+            }
+        }
+        n => {
+            fail!("unknown family {}", n);
+        }
+    }
+}
+
+pub fn addr_to_sockaddr(addr: ip::SocketAddr,
+                        storage: &mut libc::sockaddr_storage)
+                        -> libc::socklen_t {
+    fn htons(u: u16) -> u16 { u.to_be() }
+
+    unsafe {
+        let len = match addr.ip {
+            ip::Ipv4Addr(a, b, c, d) => {
+                let ip = (a as u32 << 24) |
+                         (b as u32 << 16) |
+                         (c as u32 <<  8) |
+                         (d as u32 <<  0);
+                let storage = storage as *mut _ as *mut libc::sockaddr_in;
+                (*storage).sin_family = libc::AF_INET as libc::sa_family_t;
+                (*storage).sin_port = htons(addr.port);
+                (*storage).sin_addr = libc::in_addr {
+                    s_addr: Int::from_be(ip),
+
+                };
+                mem::size_of::<libc::sockaddr_in>()
+            }
+            ip::Ipv6Addr(a, b, c, d, e, f, g, h) => {
+                let storage = storage as *mut _ as *mut libc::sockaddr_in6;
+                (*storage).sin6_family = libc::AF_INET6 as libc::sa_family_t;
+                (*storage).sin6_port = htons(addr.port);
+                (*storage).sin6_addr = libc::in6_addr {
+                    s6_addr: [
+                        htons(a),
+                        htons(b),
+                        htons(c),
+                        htons(d),
+                        htons(e),
+                        htons(f),
+                        htons(g),
+                        htons(h),
+                    ]
+                };
+                mem::size_of::<libc::sockaddr_in6>()
+            }
+        };
+        return len as libc::socklen_t
+    }
 }

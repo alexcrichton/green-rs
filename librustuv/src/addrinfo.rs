@@ -14,7 +14,7 @@ use std::rt::task::BlockedTask;
 use libc::c_int;
 use libc;
 
-use {net, uvll, raw, UvResult, UvError, EventLoop};
+use {uvll, raw, UvResult, UvError, EventLoop};
 use raw::Request;
 
 struct Data {
@@ -66,7 +66,7 @@ pub fn get_host_addresses_on(eloop: &mut EventLoop,
 
         let mut addrs = Vec::new();
         loop {
-            let rustaddr = net::sockaddr_to_addr(mem::transmute((*addr).ai_addr),
+            let rustaddr = raw::sockaddr_to_addr(mem::transmute((*addr).ai_addr),
                                                  (*addr).ai_addrlen as uint);
 
             addrs.push(rustaddr.ip);
