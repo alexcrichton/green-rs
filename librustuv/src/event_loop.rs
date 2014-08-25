@@ -72,10 +72,11 @@ impl EventLoop {
     pub fn borrow() -> UvResult<BorrowedEventLoop> {
         let local = unsafe {
             local_loop.get(|local| {
-                local.map(|c| {
-                    let r = c.get();
-                    c.set(0 as *mut _);
-                    r
+                local.and_then(|c| {
+                    match c.get() as uint {
+                        0 => None,
+                        n => { c.set(0 as *mut _); Some(n as *mut EventLoop) }
+                    }
                 })
             })
         };

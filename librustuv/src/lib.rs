@@ -49,6 +49,7 @@ extern crate libc;
 
 use libc::{c_int};
 use std::fmt;
+use std::task;
 // use std::mem;
 // use std::ptr;
 // use std::rt::local::Local;
@@ -67,7 +68,7 @@ mod macros;
 
 // mod access;
 // mod timeout;
-// mod homing;
+mod homing;
 mod queue;
 // mod rc;
 
@@ -203,26 +204,26 @@ mod timer;
 //     }
 // }
 //
-// struct ForbidUnwind {
-//     msg: &'static str,
-//     failing_before: bool,
-// }
-//
-// impl ForbidUnwind {
-//     fn new(s: &'static str) -> ForbidUnwind {
-//         ForbidUnwind {
-//             msg: s, failing_before: task::failing(),
-//         }
-//     }
-// }
-//
-// impl Drop for ForbidUnwind {
-//     fn drop(&mut self) {
-//         assert!(self.failing_before == task::failing(),
-//                 "didn't want an unwind during: {}", self.msg);
-//     }
-// }
-//
+struct ForbidUnwind {
+    msg: &'static str,
+    failing_before: bool,
+}
+
+impl ForbidUnwind {
+    fn new(s: &'static str) -> ForbidUnwind {
+        ForbidUnwind {
+            msg: s, failing_before: task::failing(),
+        }
+    }
+}
+
+impl Drop for ForbidUnwind {
+    fn drop(&mut self) {
+        assert!(self.failing_before == task::failing(),
+                "didn't want an unwind during: {}", self.msg);
+    }
+}
+
 // fn wait_until_woken_after(slot: *mut Option<BlockedTask>,
 //                           loop_: &Loop,
 //                           f: ||) {

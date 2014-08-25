@@ -33,12 +33,10 @@
 
 #![allow(dead_code)]
 
-use std::mem;
 use std::rt::local::Local;
-use std::rt::rtio::LocalIo;
 use std::rt::task::{Task, BlockedTask};
 
-use ForbidUnwind;
+use {ForbidUnwind, EventLoop};
 use queue::{Queue, QueuePool};
 
 /// A handle to a remote libuv event loop. This handle will keep the event loop
@@ -47,6 +45,7 @@ use queue::{Queue, QueuePool};
 ///
 /// Handles are clone-able in order to derive new handles from existing handles
 /// (very useful for when accepting a socket from a server).
+#[deriving(Clone)]
 pub struct HomeHandle {
     queue: Queue,
     id: uint,
@@ -60,40 +59,15 @@ impl HomeHandle {
     fn send(&mut self, task: BlockedTask) {
         self.queue.push(task);
     }
-}
-
-impl Clone for HomeHandle {
-    fn clone(&self) -> HomeHandle {
-        HomeHandle {
-            queue: self.queue.clone(),
-            id: self.id,
-        }
-    }
-}
-
-pub fn local_id() -> uint {
-    let mut io = match LocalIo::borrow() {
-        Some(io) => io, None => return 0,
-    };
-    let io = io.get();
-    unsafe {
-        let (_vtable, ptr): (uint, uint) = mem::transmute(io);
-        return ptr;
-    }
-}
-
-#[doc(hidden)]
-pub trait HomingIO {
-    fn home<'r>(&'r mut self) -> &'r mut HomeHandle;
 
     /// This function will move tasks to run on their home I/O scheduler. Note
     /// that this function does *not* pin the task to the I/O scheduler, but
     /// rather it simply moves it to running on the I/O scheduler.
-    fn go_to_io_home(&mut self) -> uint {
+    fn go_home(&mut self) -> uint {
         let _f = ForbidUnwind::new("going home");
 
         let cur_loop_id = local_id();
-        let destination = self.home().id;
+        let destination = self.id;
 
         // Try at all costs to avoid the homing operation because it is quite
         // expensive. Hence, we only deschedule/send if we're not on the correct
@@ -103,7 +77,7 @@ pub trait HomingIO {
         if cur_loop_id != destination {
             let cur_task: Box<Task> = Local::take();
             cur_task.deschedule(1, |task| {
-                self.home().send(task);
+                self.send(task);
                 Ok(())
             });
 
@@ -113,13 +87,22 @@ pub trait HomingIO {
 
         return destination;
     }
+}
+
+pub fn local_id() -> uint {
+    &*EventLoop::borrow().unwrap() as *const _ as uint
+}
+
+#[doc(hidden)]
+pub trait HomingIO {
+    fn home<'r>(&'r mut self) -> &'r mut HomeHandle;
 
     /// Fires a single homing missile, returning another missile targeted back
     /// at the original home of this task. In other words, this function will
     /// move the local task to its I/O scheduler and then return an RAII wrapper
     /// which will return the task home.
     fn fire_homing_missile(&mut self) -> HomingMissile {
-        HomingMissile { io_home: self.go_to_io_home() }
+        HomingMissile { io_home: self.home().go_home() }
     }
 }
 
