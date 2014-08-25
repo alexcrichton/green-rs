@@ -21,6 +21,7 @@ macro_rules! test( (fn $name:ident() $b:block) => (
 ) )
 
 mod async;
+mod event_loop;
 mod idle;
 mod timer;
 
