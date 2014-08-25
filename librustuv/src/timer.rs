@@ -18,6 +18,7 @@ use {raw, uvll, EventLoop, UvResult};
 use homing::{HomeHandle, HomingIO, HomingMissile};
 use raw::Handle;
 
+/// A libuv-based timer to schedule callbacks to run on an event loop.
 pub struct Timer {
     handle: raw::Timer,
     home: HomeHandle,
@@ -58,6 +59,10 @@ impl Timer {
     }
 
     /// Sleep for a specified duration of time.
+    ///
+    /// See [`std::io::Timer::sleep`][1] for semantic information.
+    ///
+    /// [1]: http://doc.rust-lang.org/std/io/timer/struct.Timer.html#method.sleep
     pub fn sleep(&mut self, dur: Duration) {
         let mut ms = dur.num_milliseconds();
         if ms <= 0 { ms = 0; }
@@ -87,6 +92,12 @@ impl Timer {
         });
     }
 
+    /// Schedule a callback to be run once after the specified duration has
+    /// elapsed.
+    ///
+    /// See [`std::io::Timer::oneshot`][1] for semantic information.
+    ///
+    /// [1]: http://doc.rust-lang.org/std/io/timer/struct.Timer.html#method.oneshot
     pub fn oneshot(&mut self, dur: Duration, cb: Box<Callback + Send>) {
         let mut ms = dur.num_milliseconds();
         if ms <= 0 { ms = 0; }
@@ -100,6 +111,12 @@ impl Timer {
         };
     }
 
+    /// Schedule a callback to be run after each `dur` amount of time that
+    /// passes.
+    ///
+    /// See [`std::io::Timer::periodic`][1] for semantic information.
+    ///
+    /// [1]: http://doc.rust-lang.org/std/io/timer/struct.Timer.html#method.periodic
     pub fn periodic(&mut self, dur: Duration, cb: Box<Callback + Send>) {
         let mut ms = dur.num_milliseconds();
         if ms <= 0 { ms = 1; }
@@ -117,6 +134,13 @@ impl Timer {
         let m = self.fire_homing_missile();
         (m, unsafe { mem::transmute(self.handle.get_data()) }, self.handle)
     }
+
+    /// Gain access to the underlying raw timer handle.
+    ///
+    /// This function is unsafe as there is no guarantee that any safe
+    /// modifications to the timer handle are actually safe to perform given the
+    /// assumptions of this object.
+    pub unsafe fn raw(&self) -> raw::Timer { self.handle }
 }
 
 extern fn timer_cb(timer: *mut uvll::uv_timer_t) {
