@@ -60,7 +60,7 @@ use std::str;
 pub use event_loop::EventLoop;
 pub use idle::Idle;
 pub use async::Async;
-// pub use timer::Timer;
+pub use timer::Timer;
 
 mod macros;
 #[cfg(test)] mod test;
@@ -68,7 +68,7 @@ mod macros;
 // mod access;
 // mod timeout;
 // mod homing;
-// mod queue;
+mod queue;
 // mod rc;
 
 // mod uvio;
@@ -86,7 +86,7 @@ mod idle;
 // mod process;
 // mod signal;
 // mod stream;
-// mod timer;
+mod timer;
 // mod tty;
 
 // /// Creates a new event loop which is powered by libuv

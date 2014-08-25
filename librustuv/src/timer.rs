@@ -10,20 +10,32 @@
 
 use std::mem;
 
-use {raw, uvll, EventLoop};
+use {raw, uvll, EventLoop, UvResult};
 use raw::Handle;
 
 pub struct Timer { handle: raw::Timer }
+pub struct Data;
 
-// use std::mem;
-// use std::rt::rtio::{RtioTimer, Callback};
-// use std::rt::task::BlockedTask;
-//
-// use homing::{HomeHandle, HomingIO};
-// use super::{UvHandle, ForbidUnwind, ForbidSwitch, wait_until_woken_after, Loop};
-// use uvio::UvIoFactory;
-// use uvll;
-//
+impl Timer {
+    /// Create a new timer on the local event loop.
+    pub fn new() -> UvResult<Timer> {
+        let mut eloop = try!(EventLoop::borrow());
+        Timer::new_on(&mut *eloop)
+    }
+
+    /// Same as `new`, but specifies what event loop to be created on.
+    pub fn new_on(eloop: &mut EventLoop) -> UvResult<Timer> {
+        unsafe {
+            let mut ret = Timer {
+                handle: try!(raw::Timer::new(&eloop.uv_loop())),
+            };
+            let data = box Data;
+            ret.handle.set_data(mem::transmute(data));
+            Ok(ret)
+        }
+    }
+}
+
 // pub struct TimerWatcher {
 //     pub handle: *mut uvll::uv_timer_t,
 //     home: HomeHandle,
@@ -38,46 +50,8 @@ pub struct Timer { handle: raw::Timer }
 //     CallMany(Box<Callback + Send>, uint),
 // }
 //
-// impl TimerWatcher {
-//     pub fn new(io: &mut UvIoFactory) -> Box<TimerWatcher> {
-//         let handle = io.make_handle();
-//         let me = box TimerWatcher::new_home(&io.loop_, handle);
-//         me.install()
-//     }
-//
-//     pub fn new_home(loop_: &Loop, home: HomeHandle) -> TimerWatcher {
-//         let handle = UvHandle::alloc(None::<TimerWatcher>, uvll::UV_TIMER);
-//         assert_eq!(unsafe { uvll::uv_timer_init(loop_.handle, handle) }, 0);
-//         TimerWatcher {
-//             handle: handle,
-//             action: None,
-//             blocker: None,
-//             home: home,
-//             id: 0,
-//         }
-//     }
-//
-//     pub fn start(&mut self, f: uvll::uv_timer_cb, msecs: u64, period: u64) {
-//         assert_eq!(unsafe {
-//             uvll::uv_timer_start(self.handle, f, msecs, period)
-//         }, 0)
-//     }
-//
-//     pub fn stop(&mut self) {
-//         assert_eq!(unsafe { uvll::uv_timer_stop(self.handle) }, 0)
-//     }
-//
-//     pub unsafe fn set_data<T>(&mut self, data: *mut T) {
-//         uvll::set_data_for_uv_handle(self.handle, data);
-//     }
-// }
-//
 // impl HomingIO for TimerWatcher {
 //     fn home<'r>(&'r mut self) -> &'r mut HomeHandle { &mut self.home }
-// }
-//
-// impl UvHandle<uvll::uv_timer_t> for TimerWatcher {
-//     fn uv_handle(&self) -> *mut uvll::uv_timer_t { self.handle }
 // }
 //
 // impl RtioTimer for TimerWatcher {
@@ -178,3 +152,11 @@ pub struct Timer { handle: raw::Timer }
 //         };
 //     }
 // }
+
+impl Drop for Timer {
+    fn drop(&mut self) {
+        let _data: Box<Data> = unsafe { mem::transmute(self.handle.get_data()) };
+        self.handle.stop().unwrap();
+        unsafe { self.handle.close_and_free() }
+    }
+}

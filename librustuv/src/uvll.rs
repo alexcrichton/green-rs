@@ -435,7 +435,7 @@ extern {
     pub fn uv_handle_size(ty: uv_handle_type) -> size_t;
     pub fn uv_req_size(ty: uv_req_type) -> size_t;
     pub fn uv_run(l: *mut uv_loop_t, mode: uv_run_mode) -> c_int;
-    pub fn uv_close(h: *mut uv_handle_t, cb: uv_close_cb);
+    pub fn uv_close(h: *mut uv_handle_t, cb: Option<uv_close_cb>);
     pub fn uv_walk(l: *mut uv_loop_t, cb: uv_walk_cb, arg: *mut c_void);
     pub fn uv_buf_init(base: *mut c_char, len: c_uint) -> uv_buf_t;
     pub fn uv_strerror(err: c_int) -> *const c_char;

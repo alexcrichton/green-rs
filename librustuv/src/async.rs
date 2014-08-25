@@ -29,7 +29,7 @@ struct Data {
 impl Async {
     /// Create a new asynchronous handle to the local event loop.
     ///
-    /// The When this handle is `fire`d, the given callback will be invoked on
+    /// When this handle is `fire`d, the given callback will be invoked on
     /// the event loop. This corresponds to `uv_async_t`.
     pub fn new(cb: Box<Callback + Send>) -> UvResult<Async> {
         let mut eloop = try!(EventLoop::borrow());
@@ -92,7 +92,7 @@ extern fn async_cb(handle: *mut uvll::uv_async_t) {
         data.callback.call();
 
         if should_exit {
-            handle.close(close_cb);
+            handle.close(Some(close_cb));
         }
     }
 }

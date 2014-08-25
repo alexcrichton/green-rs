@@ -31,7 +31,7 @@ use raw::{mod, Loop, Handle};
 // use addrinfo::GetAddrInfoRequest;
 // use async::AsyncWatcher;
 // use file::{FsRequest, FileWatcher};
-// use queue::QueuePool;
+use queue::QueuePool;
 // use homing::HomeHandle;
 // use idle::IdleWatcher;
 // use net::{TcpWatcher, TcpListener, UdpWatcher};
@@ -46,6 +46,7 @@ tls!(local_loop: Cell<*mut EventLoop>)
 
 pub struct EventLoop {
     uv_loop: Loop,
+    pool: Option<Box<QueuePool>>,
 }
 
 pub struct BorrowedEventLoop {
@@ -56,8 +57,11 @@ pub struct BorrowedEventLoop {
 
 impl EventLoop {
     pub fn new() -> UvResult<EventLoop> {
+        let uv_loop = try!(unsafe { Loop::new() });
+        let pool = try!(QueuePool::new(&uv_loop));
         Ok(EventLoop {
-            uv_loop: try!(unsafe { Loop::new() }),
+            pool: Some(pool),
+            uv_loop: uv_loop,
         })
     }
 
@@ -141,6 +145,8 @@ impl green::EventLoop for EventLoop {
 
 impl Drop for EventLoop {
     fn drop(&mut self) {
+        use green::EventLoop;
+
         // Must first destroy the pool of handles before we destroy the loop
         // because otherwise the contained async handle will be destroyed after
         // the loop is free'd (use-after-free). We also must free the uv handle
@@ -150,14 +156,13 @@ impl Drop for EventLoop {
         // Lastly, after we've closed the pool of handles we pump the event loop
         // one last time to run any closing callbacks to make sure the loop
         // shuts down cleanly.
-        // let handle = self.uvio.handle_pool.get_ref().handle();
-        // drop(self.uvio.handle_pool.take());
-        // self.run();
-        //
-        // self.uvio.loop_.close();
-        // unsafe { uvll::free_handle(handle) }
+        let mut handle = self.pool.get_ref().handle();
+        drop(self.pool.take());
+        self.run();
+
         unsafe {
             self.uv_loop.close().unwrap();
+            handle.free();
             self.uv_loop.free();
         }
     }

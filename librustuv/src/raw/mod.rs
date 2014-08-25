@@ -41,7 +41,7 @@ pub struct Raw<T> {
 // FIXME: this T should be an associated type
 pub trait Handle<T: Allocated> {
     fn raw(&self) -> *mut T;
-    fn from_raw(t: *mut T) -> Self;
+    unsafe fn from_raw(t: *mut T) -> Self;
 
     fn uv_loop(&self) -> Loop {
         unsafe {
@@ -64,7 +64,7 @@ pub trait Handle<T: Allocated> {
     ///
     /// This is unsafe as there is no guarantee that this handle is not actively
     /// being used by other objects.
-    unsafe fn close(&mut self, thunk: uvll::uv_close_cb) {
+    unsafe fn close(&mut self, thunk: Option<uvll::uv_close_cb>) {
         uvll::uv_close(self.raw() as *mut _, thunk)
     }
 
@@ -82,8 +82,11 @@ pub trait Handle<T: Allocated> {
         extern fn done<T: Allocated>(t: *mut uvll::uv_handle_t) {
             unsafe { drop(Raw::wrap(t as *mut T)) }
         }
-        self.close(done::<T>)
+        self.close(Some(done::<T>))
     }
+
+    fn uv_ref(&self) { unsafe { uvll::uv_ref(self.raw() as *mut _) } }
+    fn uv_unref(&self) { unsafe { uvll::uv_unref(self.raw() as *mut _) } }
 }
 
 
