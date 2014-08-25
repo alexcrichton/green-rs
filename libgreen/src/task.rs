@@ -79,6 +79,55 @@ pub enum Home {
     HomeSched(SchedHandle),
 }
 
+/// Spawn a new green task, assuming the current task is a green task.
+///
+/// # Failure
+///
+/// This function will fail if the current task is not already a green task.
+pub fn spawn(f: proc(): Send) {
+    spawn_opts(TaskOpts::new(), f)
+}
+
+/// See documentation for `spawn`.
+pub fn spawn_opts(opts: TaskOpts, f: proc(): Send) {
+    let mut task: Box<Task> = Local::take();
+    let task = match task.maybe_take_runtime::<GreenTask>() {
+        Some(mut green) => {
+            green.put_task(task);
+            green
+        }
+        None => {
+            Local::put(task);
+            fail!("cannot spawn a green task from a non-green task")
+        }
+    };
+
+    // First, set up a bomb which when it goes off will restore the local
+    // task unless its disarmed. This will allow us to gracefully fail from
+    // inside of `configure` which allocates a new task.
+    struct Bomb { inner: Option<Box<GreenTask>> }
+    impl Drop for Bomb {
+        fn drop(&mut self) {
+            let _ = self.inner.take().map(|task| task.put());
+        }
+    }
+    let mut bomb = Bomb { inner: Some(task) };
+
+    // Spawns a task into the current scheduler. We allocate the new task's
+    // stack from the scheduler's stack pool, and then configure it
+    // accordingly to `opts`. Afterwards we bootstrap it immediately by
+    // switching to it.
+    //
+    // Upon returning, our task is back in TLS and we're good to return.
+    let sibling = {
+        let sched = bomb.inner.get_mut_ref().sched.get_mut_ref();
+        GreenTask::configure(&mut sched.stack_pool, opts, f)
+    };
+    let mut me = bomb.inner.take().unwrap();
+    let sched = me.sched.take().unwrap();
+    sched.run_task(me, sibling)
+}
+
 /// Trampoline code for all new green tasks which are running around. This
 /// function is passed through to Context::new as the initial rust landing pad
 /// for all green tasks. This code is actually called after the initial context
@@ -443,32 +492,6 @@ impl Runtime for GreenTask {
         self.put_task(cur_task);
         self.put();
         ::native::task::spawn_opts(opts, f)
-        // self.put_task(cur_task);
-        //
-        // // First, set up a bomb which when it goes off will restore the local
-        // // task unless its disarmed. This will allow us to gracefully fail from
-        // // inside of `configure` which allocates a new task.
-        // struct Bomb { inner: Option<Box<GreenTask>> }
-        // impl Drop for Bomb {
-        //     fn drop(&mut self) {
-        //         let _ = self.inner.take().map(|task| task.put());
-        //     }
-        // }
-        // let mut bomb = Bomb { inner: Some(self) };
-        //
-        // // Spawns a task into the current scheduler. We allocate the new task's
-        // // stack from the scheduler's stack pool, and then configure it
-        // // accordingly to `opts`. Afterwards we bootstrap it immediately by
-        // // switching to it.
-        // //
-        // // Upon returning, our task is back in TLS and we're good to return.
-        // let sibling = {
-        //     let sched = bomb.inner.get_mut_ref().sched.get_mut_ref();
-        //     GreenTask::configure(&mut sched.stack_pool, opts, f)
-        // };
-        // let mut me = bomb.inner.take().unwrap();
-        // let sched = me.sched.take().unwrap();
-        // sched.run_task(me, sibling)
     }
 
     // Local I/O is provided by the scheduler's event loop
@@ -497,13 +520,10 @@ impl Runtime for GreenTask {
 
 #[cfg(test)]
 mod tests {
-    use std::rt::local::Local;
-    use std::rt::task::Task;
     use std::task;
     use std::rt::task::TaskOpts;
 
     use super::super::{PoolConfig, SchedPool};
-    use super::GreenTask;
 
     fn spawn_opts(opts: TaskOpts, f: proc():Send) {
         let mut pool = SchedPool::new(PoolConfig {
@@ -578,25 +598,6 @@ mod tests {
             });
             rx.recv();
             tx1.send(());
-        });
-        rx.recv();
-    }
-
-    #[test]
-    fn spawn_inherits() {
-        let (tx, rx) = channel();
-        spawn_opts(TaskOpts::new(), proc() {
-            spawn(proc() {
-                let mut task: Box<Task> = Local::take();
-                match task.maybe_take_runtime::<GreenTask>() {
-                    Some(ops) => {
-                        task.put_runtime(ops);
-                    }
-                    None => fail!(),
-                }
-                Local::put(task);
-                tx.send(());
-            });
         });
         rx.recv();
     }

@@ -1030,7 +1030,7 @@ mod test {
     use {TaskState, PoolConfig, SchedPool};
     use basic;
     use sched::{TaskFromFriend, PinnedTask};
-    use task::{GreenTask, HomeSched, AnySched};
+    use task::{spawn, GreenTask, HomeSched, AnySched};
 
     fn pool() -> SchedPool {
         SchedPool::new(PoolConfig {

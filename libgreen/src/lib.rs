@@ -112,7 +112,7 @@
 //!
 //! # Starting with libgreen
 //!
-//! ```rust
+//! ```rust,ignore
 //! extern crate green;
 //!
 //! #[start]
@@ -130,7 +130,7 @@
 //!
 //! # Starting with I/O support in libgreen
 //!
-//! ```rust
+//! ```rust,ignore
 //! extern crate green;
 //! extern crate rustuv;
 //!
@@ -146,7 +146,7 @@
 //!
 //! The above code can also be shortened with a macro from libgreen.
 //!
-//! ```
+//! ```rust,ignore
 //! #![feature(phase)]
 //! #[phase(plugin)] extern crate green;
 //!
@@ -163,7 +163,7 @@
 //! available on `std::task::TaskBuilder` to allow spawning a green task,
 //! possibly pinned to a particular scheduler thread:
 //!
-//! ```rust
+//! ```rust,ignore
 //! extern crate green;
 //! extern crate rustuv;
 //!
@@ -250,7 +250,7 @@ pub mod task;
 ///
 /// # Example
 ///
-/// ```
+/// ```rust,ignore
 /// #![feature(phase)]
 /// #[phase(plugin)] extern crate green;
 ///
