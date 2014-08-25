@@ -11,9 +11,10 @@
 use std::rt::heap;
 use libc;
 
-use uvll;
+use {uvll, UvResult};
 
 pub use self::async::Async;
+pub use self::getaddrinfo::GetAddrInfo;
 pub use self::idle::Idle;
 pub use self::loop_::Loop;
 pub use self::timer::Timer;
@@ -26,6 +27,7 @@ macro_rules! call( ($e:expr) => (
 ) )
 
 mod async;
+mod getaddrinfo;
 mod idle;
 mod loop_;
 mod timer;
@@ -87,6 +89,45 @@ pub trait Handle<T: Allocated> {
 
     fn uv_ref(&self) { unsafe { uvll::uv_ref(self.raw() as *mut _) } }
     fn uv_unref(&self) { unsafe { uvll::uv_unref(self.raw() as *mut _) } }
+}
+
+// FIXME: this T should be an associated type
+pub trait Request<T: Allocated> {
+    fn raw(&self) -> *mut T;
+    unsafe fn from_raw(t: *mut T) -> Self;
+
+    fn get_data(&self) -> *mut libc::c_void {
+        unsafe { uvll::rust_uv_get_data_for_req(self.raw() as *mut _) }
+    }
+
+    fn set_data(&mut self, data: *mut libc::c_void) {
+        unsafe {
+            uvll::rust_uv_set_data_for_req(self.raw() as *mut _, data)
+        }
+    }
+
+    /// Allocate a new uninitialized request.
+    ///
+    /// This function is unsafe as there is no scheduled destructor for the
+    /// returned value.
+    unsafe fn alloc() -> Self {
+        Request::from_raw(Raw::<T>::new().unwrap())
+    }
+
+    /// Invokes uv_close
+    ///
+    /// This is unsafe as there is no guarantee that this handle is not actively
+    /// being used by other objects.
+    fn cancel(&mut self) -> UvResult<()> {
+        unsafe { try!(call!(uvll::uv_cancel(self.raw() as *mut _))); }
+        Ok(())
+    }
+
+    /// Deallocate this handle.
+    ///
+    /// This is unsafe as there is no guarantee that no one else is using this
+    /// handle currently.
+    unsafe fn free(&mut self) { drop(Raw::wrap(self.raw())) }
 }
 
 impl<T: Allocated> Raw<T> {

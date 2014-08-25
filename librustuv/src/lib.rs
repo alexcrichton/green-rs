@@ -58,9 +58,10 @@ use std::rt::task::{BlockedTask, Task};
 use std::str;
 // use std::task;
 
+pub use addrinfo::get_host_addresses;
+pub use async::Async;
 pub use event_loop::EventLoop;
 pub use idle::Idle;
-pub use async::Async;
 pub use timer::Timer;
 
 mod macros;
@@ -77,11 +78,11 @@ pub mod uvll;
 pub mod raw;
 mod event_loop;
 
-// mod addrinfo;
+mod addrinfo;
 mod async;
 // mod file;
 mod idle;
-// mod net;
+mod net;
 // mod pipe;
 // mod process;
 // mod signal;
@@ -235,11 +236,11 @@ fn block(mut uv_loop: raw::Loop, f: |BlockedTask|) {
     uv_loop.set_data(cnt as *mut _);
 }
 
-// fn wakeup(slot: &mut Option<BlockedTask>) {
-//     assert!(slot.is_some());
-//     slot.take().unwrap().reawaken();
-// }
-//
+fn wakeup(slot: &mut Option<BlockedTask>) {
+    assert!(slot.is_some());
+    slot.take().unwrap().reawaken();
+}
+
 // // struct Request {
 // //     pub handle: *mut uvll::uv_req_t,
 // //     defused: bool,

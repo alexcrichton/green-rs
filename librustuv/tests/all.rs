@@ -20,6 +20,7 @@ macro_rules! test( (fn $name:ident() $b:block) => (
     fn $name() { ::runtest(proc() $b) }
 ) )
 
+mod addrinfo;
 mod async;
 mod event_loop;
 mod idle;

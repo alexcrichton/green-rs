@@ -453,6 +453,7 @@ extern {
     pub fn uv_write(req: *mut uv_write_t, stream: *mut uv_stream_t,
                     buf_in: *const uv_buf_t, buf_cnt: c_int,
                     cb: uv_write_cb) -> c_int;
+    pub fn uv_cancel(req: *mut uv_req_t) -> c_int;
 
     // idle bindings
     pub fn uv_idle_init(l: *mut uv_loop_t, i: *mut uv_idle_t) -> c_int;
