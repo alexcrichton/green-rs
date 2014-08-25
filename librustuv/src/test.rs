@@ -10,7 +10,7 @@ use green::task::GreenTask;
 use green::sleeper_list::SleeperList;
 use green::TaskState;
 
-use uvio::UvEventLoop;
+use EventLoop;
 
 local_data_key!(local_loop_key: uint)
 
@@ -19,7 +19,7 @@ macro_rules! test( (fn $name:ident() $b:block) => (
     fn $name() { ::test::runtest(proc() $b) }
 ) )
 
-pub fn local_loop() -> &'static mut UvEventLoop {
+pub fn local_loop() -> &'static mut EventLoop {
     unsafe { mem::transmute(*local_loop_key.get().unwrap()) }
 }
 
@@ -27,7 +27,7 @@ pub fn runtest(p: proc(): Send) {
     let pool = BufferPool::new();
     let (worker, stealer) = pool.deque();
     let (rx, state) = TaskState::new();
-    let event_loop = box UvEventLoop::new();
+    let event_loop = box EventLoop::new().unwrap();
     let eloop_key = &*event_loop as *const _ as uint;
     let sched = Scheduler::new(100,
                                event_loop,

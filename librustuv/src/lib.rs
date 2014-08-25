@@ -57,9 +57,11 @@ use std::str;
 // use std::task;
 
 pub use event_loop::EventLoop;
+pub use idle::Idle;
+pub use async::Async;
 
 mod macros;
-// #[cfg(test)] mod test;
+#[cfg(test)] mod test;
 
 // mod access;
 // mod timeout;
@@ -75,9 +77,9 @@ mod event_loop;
 
 // mod file;
 // mod net;
-// mod idle;
+mod idle;
 // mod timer;
-// mod async;
+mod async;
 // mod addrinfo;
 // mod process;
 // mod pipe;

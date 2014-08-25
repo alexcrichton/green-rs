@@ -8,10 +8,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::rt::heap;
 use libc;
 
-use {UvResult, UvError, uvll};
+use raw::{Raw, Allocated};
+use {UvResult, uvll};
 
 pub struct Loop {
     handle: *mut uvll::uv_loop_t,
@@ -23,24 +23,16 @@ impl Loop {
     /// This function is unsafe becuase it will leak the event loop as there is
     /// no destructor on the returned value.
     pub unsafe fn new() -> UvResult<Loop> {
-        unsafe {
-            let size = uvll::uv_loop_size() as uint;
-            let handle: *mut uvll::uv_loop_t = heap::allocate(size, 8) as *mut _;
-            match call!(uvll::uv_loop_init(handle)) {
-                Ok(_) => Ok(Loop { handle: handle }),
-                Err(e) => {
-                    heap::deallocate(handle as *mut u8, size, 8);
-                    Err(e)
-                }
-            }
-        }
+        let raw = Raw::new();
+        try!(call!(uvll::uv_loop_init(raw.get())));
+        Ok(Loop { handle: raw.unwrap() })
     }
 
     /// Wrap an existing event loop.
     ///
     /// This function is unsafe because there is no guarantee that the
     /// underlying pointer is valid.
-    pub unsafe fn wrap(raw: *mut uvll::uv_loop_t) -> Loop {
+    pub unsafe fn from_raw(raw: *mut uvll::uv_loop_t) -> Loop {
         Loop { handle: raw }
     }
 
@@ -68,9 +60,21 @@ impl Loop {
     /// function should be called in the future to deallocate it.
     pub unsafe fn close(&mut self) -> UvResult<()> {
         try!(call!(uvll::uv_loop_close(self.handle)));
-        let size = uvll::uv_loop_size() as uint;
-        heap::deallocate(self.handle as *mut u8, size, 8);
         Ok(())
+    }
+
+    /// Deallocate this handle.
+    ///
+    /// This is unsafe as there is no guarantee that no one else is using this
+    /// handle currently.
+    pub unsafe fn free(&mut self) {
+        drop(Raw::wrap(self.handle))
+    }
+}
+
+impl Allocated for uvll::uv_loop_t {
+    fn size(_self: Option<uvll::uv_loop_t>) -> uint {
+        unsafe { uvll::uv_loop_size() as uint }
     }
 }
 
@@ -85,6 +89,7 @@ mod tests {
             let mut l = Loop::new().unwrap();
             l.run(uvll::RUN_DEFAULT).unwrap();
             l.close().unwrap();
+            l.free();
         }
     }
 }

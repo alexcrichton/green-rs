@@ -13,8 +13,9 @@ use libc;
 
 use uvll;
 
-pub use self::loop_::Loop;
+pub use self::async::Async;
 pub use self::idle::Idle;
+pub use self::loop_::Loop;
 
 macro_rules! call( ($e:expr) => (
     match $e {
@@ -25,6 +26,7 @@ macro_rules! call( ($e:expr) => (
 
 mod loop_;
 mod idle;
+mod async;
 
 pub trait Allocated {
     fn size(_self: Option<Self>) -> uint;
@@ -35,95 +37,87 @@ pub struct Raw<T> {
 }
 
 // FIXME: this T should be an associated type
-pub trait Handle<T>: Allocated {
+pub trait Handle<T: Allocated> {
     fn raw(&self) -> *mut T;
     fn from_raw(t: *mut T) -> Self;
 
-    unsafe fn alloc(_self: Option<Self>) -> *mut T {
-        let uv_handle_type = Handle::uv_handle_type(None::<Self>);
-        let size = uvll::uv_handle_size(uv_handle_type);
-        heap::allocate(size as uint, 8) as *mut T
-    }
-
-    unsafe fn free(_self: Option<Self>, ptr: *mut T) {
-        let uv_handle_type = Handle::uv_handle_type(None::<Self>);
-        let size = uvll::uv_handle_size(uv_handle_type);
-        heap::deallocate(ptr as *mut u8, size as uint, 8)
-    }
-
     fn uv_loop(&self) -> Loop {
         unsafe {
-            Loop::wrap(uvll::rust_uv_get_loop_for_uv_handle(self.raw() as *mut _))
+            let loop_ = uvll::rust_uv_get_loop_for_uv_handle(self.raw() as *mut _);
+            Loop::from_raw(loop_)
         }
     }
 
     fn get_data(&self) -> *mut libc::c_void {
         unsafe { uvll::rust_uv_get_data_for_uv_handle(self.raw() as *mut _) }
     }
+
     fn set_data(&mut self, data: *mut libc::c_void) {
         unsafe {
             uvll::rust_uv_set_data_for_uv_handle(self.raw() as *mut _, data)
         }
     }
-    // // FIXME(#8888) dummy self
-    // fn alloc(_: Option<Self>, ty: uvll::uv_handle_type) -> *mut T {
-    //     unsafe {
-    //         let handle = uvll::malloc_handle(ty);
-    //         assert!(!handle.is_null());
-    //         handle as *mut T
-    //     }
-    // }
 
-    // unsafe fn from_uv_handle<'a>(h: &'a *mut T) -> &'a mut Self {
-    //     mem::transmute(uvll::get_data_for_uv_handle(*h))
-    // }
-    //
-    // fn install(self: Box<Self>) -> Box<Self> {
-    //     unsafe {
-    //         let myptr = mem::transmute::<&Box<Self>, &*mut u8>(&self);
-    //         uvll::set_data_for_uv_handle(self.uv_handle(), *myptr);
-    //     }
-    //     self
-    // }
-    //
-    // fn close_async_(&mut self) {
-    //     // we used malloc to allocate all handles, so we must always have at
-    //     // least a callback to free all the handles we allocated.
-    //     extern fn close_cb(handle: *mut uvll::uv_handle_t) {
-    //         unsafe { uvll::free_handle(handle) }
-    //     }
-    //
-    //     unsafe {
-    //         uvll::set_data_for_uv_handle(self.uv_handle(), ptr::mut_null::<()>());
-    //         uvll::uv_close(self.uv_handle() as *mut uvll::uv_handle_t, close_cb)
-    //     }
-    // }
-    //
-    // fn close(&mut self) {
-    //     let mut slot = None;
-    //
-    //     unsafe {
-    //         uvll::uv_close(self.uv_handle() as *mut uvll::uv_handle_t, close_cb);
-    //         uvll::set_data_for_uv_handle(self.uv_handle(),
-    //                                      ptr::mut_null::<()>());
-    //
-    //         wait_until_woken_after(&mut slot, &self.uv_loop(), || {
-    //             uvll::set_data_for_uv_handle(self.uv_handle(), &mut slot);
-    //         })
-    //     }
-    //
-    //     extern fn close_cb(handle: *mut uvll::uv_handle_t) {
-    //         unsafe {
-    //             let data = uvll::get_data_for_uv_handle(handle);
-    //             uvll::free_handle(handle);
-    //             if data == ptr::mut_null() { return }
-    //             let slot: &mut Option<BlockedTask> = mem::transmute(data);
-    //             wakeup(slot);
-    //         }
-    //     }
-    // }
+    /// Invokes uv_close
+    ///
+    /// This is unsafe as there is no guarantee that this handle is not actively
+    /// being used by other objects.
+    unsafe fn close(&mut self, thunk: uvll::uv_close_cb) {
+        uvll::uv_close(self.raw() as *mut _, thunk)
+    }
+
+    /// Deallocate this handle.
+    ///
+    /// This is unsafe as there is no guarantee that no one else is using this
+    /// handle currently.
+    unsafe fn free(&mut self) { drop(Raw::wrap(self.raw())) }
+
+    /// Invoke uv_close, and then free the handle when the close operation is
+    /// done.
+    ///
+    /// This is unsafe for the same reasons as `close` and `free`.
+    unsafe fn close_and_free(&mut self) {
+        extern fn done<T: Allocated>(t: *mut uvll::uv_handle_t) {
+            unsafe { drop(Raw::wrap(t as *mut T)) }
+        }
+        self.close(done::<T>)
+    }
 }
 
 
 impl<T: Allocated> Raw<T> {
+    /// Allocates a new instance of the underlying pointer.
+    fn new() -> Raw<T> {
+        let size = Allocated::size(None::<T>);
+        unsafe {
+            Raw { ptr: heap::allocate(size as uint, 8) as *mut T }
+        }
+    }
+
+    /// Wrap a pointer, scheduling it for deallocation when the returned value
+    /// goes out of scope.
+    unsafe fn wrap(ptr: *mut T) -> Raw<T> { Raw { ptr: ptr } }
+
+    fn get(&self) -> *mut T { self.ptr }
+
+    /// Unwrap this raw pointer, cancelling its deallocation.
+    ///
+    /// This method is unsafe because it will leak the returned pointer.
+    unsafe fn unwrap(mut self) -> *mut T {
+        let ret = self.ptr;
+        self.ptr = 0 as *mut T;
+        return ret;
+    }
+}
+
+#[unsafe_destructor]
+impl<T: Allocated> Drop for Raw<T> {
+    fn drop(&mut self) {
+        if self.ptr.is_null() { return }
+
+        let size = Allocated::size(None::<T>);
+        unsafe {
+            heap::deallocate(self.ptr as *mut u8, size as uint, 8)
+        }
+    }
 }

@@ -8,7 +8,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-// //! The implementation of `rtio` for libuv
+use std::mem;
 
 // use std::c_str::CString;
 // use std::mem;
@@ -20,8 +20,8 @@
 // use libc;
 use green;
 
-use UvResult;
-use raw::Loop;
+use {UvResult, Idle, Async};
+use raw::{mod, Loop, Handle};
 // use green::EventLoop;
 //
 // use super::{uv_error_to_io_error, Loop};
@@ -77,7 +77,8 @@ impl Drop for EventLoop {
         // self.uvio.loop_.close();
         // unsafe { uvll::free_handle(handle) }
         unsafe {
-            self.uv_loop.close().unwrap()
+            self.uv_loop.close().unwrap();
+            self.uv_loop.free();
         }
     }
 }
@@ -88,26 +89,35 @@ impl green::EventLoop for EventLoop {
     }
 
     fn callback(&mut self, f: proc()) {
-        fail!()
-        // IdleWatcher::onetime(&mut self.uvio.loop_, f);
+        unsafe {
+            let mut idle = raw::Idle::new(&self.uv_loop).unwrap();
+            idle.set_data(mem::transmute(box f));
+            idle.start(onetime).unwrap();
+        }
+
+        extern fn onetime(handle: *mut uvll::uv_idle_t) {
+            unsafe {
+                let mut idle: raw::Idle = Handle::from_raw(handle);
+                let f: Box<proc()> = mem::transmute(idle.get_data());
+                idle.close_and_free();
+                (*f)();
+            }
+        }
     }
 
     fn pausable_idle_callback(&mut self, cb: Box<green::Callback + Send>)
                               -> Box<green::PausableIdleCallback + Send> {
-        fail!()
-        // IdleWatcher::new(&mut self.uvio.loop_, cb)
-        //                  as Box<green::PausableIdleCallback + Send>
+        box Idle::new(self, cb).unwrap()
+            as Box<green::PausableIdleCallback + Send>
     }
 
     fn remote_callback(&mut self, f: Box<green::Callback + Send>)
                        -> Box<green::RemoteCallback + Send> {
-        fail!()
-        // box AsyncWatcher::new(&mut self.uvio.loop_, f) as
-        //     Box<green::RemoteCallback + Send>
+        box Async::new(self, f).unwrap() as Box<green::RemoteCallback + Send>
     }
 
     fn has_active_io(&self) -> bool {
-        fail!()
+        true
         // self.uvio.loop_.get_blockers() > 0
     }
 }
