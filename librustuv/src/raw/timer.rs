@@ -57,7 +57,7 @@ impl Timer {
 
 impl Allocated for uvll::uv_timer_t {
     fn size(_self: Option<uvll::uv_timer_t>) -> uint {
-        unsafe { uvll::uv_handle_size(uvll::UV_ASYNC) as uint }
+        unsafe { uvll::uv_handle_size(uvll::UV_TIMER) as uint }
     }
 }
 

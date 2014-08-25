@@ -89,7 +89,6 @@ pub trait Handle<T: Allocated> {
     fn uv_unref(&self) { unsafe { uvll::uv_unref(self.raw() as *mut _) } }
 }
 
-
 impl<T: Allocated> Raw<T> {
     /// Allocates a new instance of the underlying pointer.
     fn new() -> Raw<T> {

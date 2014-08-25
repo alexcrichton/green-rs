@@ -9,3 +9,7 @@ path = "../libgreen"
 
 [dependencies.tls]
 path = "../libtls"
+
+[[test]]
+name = "all"
+path = "tests/all.rs"

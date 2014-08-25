@@ -52,9 +52,9 @@ use std::fmt;
 use std::task;
 // use std::mem;
 // use std::ptr;
-// use std::rt::local::Local;
+use std::rt::local::Local;
 // use std::rt::rtio::{IoResult, IoError};
-// use std::rt::task::{BlockedTask, Task};
+use std::rt::task::{BlockedTask, Task};
 use std::str;
 // use std::task;
 
@@ -64,11 +64,10 @@ pub use async::Async;
 pub use timer::Timer;
 
 mod macros;
-#[cfg(test)] mod test;
 
 // mod access;
 // mod timeout;
-mod homing;
+pub mod homing;
 mod queue;
 // mod rc;
 
@@ -224,26 +223,21 @@ impl Drop for ForbidUnwind {
     }
 }
 
-// fn wait_until_woken_after(slot: *mut Option<BlockedTask>,
-//                           loop_: &Loop,
-//                           f: ||) {
-//     let _f = ForbidUnwind::new("wait_until_woken_after");
-//     unsafe {
-//         assert!((*slot).is_none());
-//         let task: Box<Task> = Local::take();
-//         loop_.modify_blockers(1);
-//         task.deschedule(1, |task| {
-//             *slot = Some(task);
-//             f();
-//             Ok(())
-//         });
-//         loop_.modify_blockers(-1);
-//     }
-// }
-//
+fn block(mut uv_loop: raw::Loop, f: |BlockedTask|) {
+    let _f = ForbidUnwind::new("wait_until_woken_after");
+    let task: Box<Task> = Local::take();
+    let cnt = uv_loop.get_data() as uint;
+    uv_loop.set_data((cnt + 1) as *mut _);
+    task.deschedule(1, |task| {
+        f(task);
+        Ok(())
+    });
+    uv_loop.set_data(cnt as *mut _);
+}
+
 // fn wakeup(slot: &mut Option<BlockedTask>) {
 //     assert!(slot.is_some());
-//     let _ = slot.take_unwrap().wake().map(|t| t.reawaken());
+//     slot.take().unwrap().reawaken();
 // }
 //
 // // struct Request {
@@ -387,54 +381,3 @@ fn error_smoke_test() {
     let err: UvError = UvError(uvll::EOF);
     assert_eq!(err.to_string(), "EOF: end of file".to_string());
 }
-
-// #[cfg(unix)]
-// fn uv_error_to_io_error(uverr: UvError) -> IoError {
-//     let UvError(errcode) = uverr;
-//     IoError {
-//         code: if errcode == uvll::EOF {libc::EOF as uint} else {-errcode as uint},
-//         extra: 0,
-//         detail: Some(uverr.desc().to_string()),
-//     }
-// }
-//
-// #[cfg(windows)]
-// fn uv_error_to_io_error(uverr: UvError) -> IoError {
-//     let UvError(errcode) = uverr;
-//     IoError {
-//         code: match errcode {
-//             uvll::EOF => libc::EOF,
-//             uvll::EACCES => libc::ERROR_ACCESS_DENIED,
-//             uvll::ECONNREFUSED => libc::WSAECONNREFUSED,
-//             uvll::ECONNRESET => libc::WSAECONNRESET,
-//             uvll::ENOTCONN => libc::WSAENOTCONN,
-//             uvll::ENOENT => libc::ERROR_FILE_NOT_FOUND,
-//             uvll::EPIPE => libc::ERROR_NO_DATA,
-//             uvll::ECONNABORTED => libc::WSAECONNABORTED,
-//             uvll::EADDRNOTAVAIL => libc::WSAEADDRNOTAVAIL,
-//             uvll::ECANCELED => libc::ERROR_OPERATION_ABORTED,
-//             uvll::EADDRINUSE => libc::WSAEADDRINUSE,
-//             uvll::EPERM => libc::ERROR_ACCESS_DENIED,
-//             err => {
-//                 uvdebug!("uverr.code {}", err as int);
-//                 // FIXME: Need to map remaining uv error types
-//                 -1
-//             }
-//         } as uint,
-//         extra: 0,
-//         detail: Some(uverr.desc()),
-//     }
-// }
-//
-// fn status_to_io_result(status: c_int) -> IoResult<()> {
-//     if status >= 0 {Ok(())} else {Err(uv_error_to_io_error(UvError(status)))}
-// }
-//
-// /// The uv buffer type
-// type Buf = uvll::uv_buf_t;
-//
-// /// Borrow a slice to a Buf
-// fn slice_to_uv_buf(v: &[u8]) -> Buf {
-//     let data = v.as_ptr();
-//     uvll::uv_buf_t { base: data as *mut u8, len: v.len() as uvll::uv_buf_len_t }
-// }

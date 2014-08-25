@@ -32,7 +32,7 @@ use raw::{mod, Loop, Handle};
 // use async::AsyncWatcher;
 // use file::{FsRequest, FileWatcher};
 use queue::QueuePool;
-// use homing::HomeHandle;
+use homing::HomeHandle;
 // use idle::IdleWatcher;
 // use net::{TcpWatcher, TcpListener, UdpWatcher};
 // use pipe::{PipeWatcher, PipeListener};
@@ -57,7 +57,8 @@ pub struct BorrowedEventLoop {
 
 impl EventLoop {
     pub fn new() -> UvResult<EventLoop> {
-        let uv_loop = try!(unsafe { Loop::new() });
+        let mut uv_loop = try!(unsafe { Loop::new() });
+        uv_loop.set_data(0 as *mut _);
         let pool = try!(QueuePool::new(&uv_loop));
         Ok(EventLoop {
             pool: Some(pool),
@@ -96,6 +97,17 @@ impl EventLoop {
     /// called on the `Loop` will be valid as this event loop will deallocate it
     /// when it goes out of scope.
     pub unsafe fn uv_loop(&self) -> Loop { self.uv_loop }
+
+    /// Create a new handle to this event loop.
+    ///
+    /// This handle can be used to return the current task home, assuming that
+    /// it is a green task.
+    pub fn make_handle(&mut self) -> HomeHandle {
+        // It's understood by the homing code that the "local id" is just the
+        // pointer of the local I/O factory cast to a uint.
+        let id: uint = self as *mut _ as uint;
+        HomeHandle::new(id, &mut **self.pool.get_mut_ref())
+    }
 }
 
 impl green::EventLoop for EventLoop {
@@ -188,20 +200,6 @@ impl Drop for BorrowedEventLoop {
     }
 }
 
-// pub struct IoFactory {
-//     pub loop_: Loop,
-//     handle_pool: Option<Box<QueuePool>>,
-// }
-//
-// impl IoFactory {
-//     pub fn uv_loop<'a>(&mut self) -> *mut uvll::uv_loop_t { self.loop_.handle }
-//
-//     pub fn make_handle(&mut self) -> HomeHandle {
-//         // It's understood by the homing code that the "local id" is just the
-//         // pointer of the local I/O factory cast to a uint.
-//         let id: uint = unsafe { mem::transmute_copy(&self) };
-//         HomeHandle::new(id, &mut **self.handle_pool.get_mut_ref())
-//     }
 // }
 
 // impl IoFactory for IoFactory {
