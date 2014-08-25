@@ -67,6 +67,8 @@ pub struct GreenTask {
 
     // See the comments in the scheduler about why this is necessary
     pub nasty_deschedule_lock: NativeMutex,
+
+    io: ::native::io::IoFactory,
 }
 
 pub enum TaskType {
@@ -215,6 +217,7 @@ impl GreenTask {
             handle: None,
             nasty_deschedule_lock: unsafe { NativeMutex::new() },
             task: Some(box Task::new()),
+            io: ::native::io::IoFactory::new(),
         }
     }
 
@@ -496,11 +499,7 @@ impl Runtime for GreenTask {
 
     // Local I/O is provided by the scheduler's event loop
     fn local_io<'a>(&'a mut self) -> Option<rtio::LocalIo<'a>> {
-        None
-        // match self.sched.get_mut_ref().event_loop.io() {
-        //     Some(io) => Some(rtio::LocalIo::new(io)),
-        //     None => None,
-        // }
+        Some(rtio::LocalIo::new(&mut self.io))
     }
 
     fn stack_bounds(&self) -> (uint, uint) {
