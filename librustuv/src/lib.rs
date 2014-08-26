@@ -62,6 +62,7 @@ pub use fs::File;
 pub use idle::Idle;
 pub use pipe::{Pipe, PipeListener, PipeAcceptor};
 pub use signal::Signal;
+pub use tcp::{Tcp, TcpListener, TcpAcceptor};
 pub use timer::Timer;
 pub use tty::Tty;
 
@@ -87,6 +88,7 @@ mod pipe;
 // mod process;
 mod signal;
 mod stream;
+mod tcp;
 mod timer;
 mod tty;
 

@@ -73,10 +73,6 @@ use raw::{Request, Handle};
 //     home: HomeHandle,
 //     refcount: Refcount,
 //
-//     // libuv can't support concurrent reads and concurrent writes of the same
-//     // stream object, so we use these access guards in order to arbitrate among
-//     // multiple concurrent reads and writes. Note that libuv *can* read and
-//     // write simultaneously, it just can't read and read simultaneously.
 //     read_access: AccessTimeout<()>,
 //     write_access: AccessTimeout<()>,
 // }

@@ -28,6 +28,7 @@ mod fs;
 mod idle;
 mod pipe;
 mod signal;
+mod tcp;
 mod timer;
 
 struct SchedulerExiter { handle: SchedHandle }
