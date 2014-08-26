@@ -12,9 +12,6 @@ use libc::{c_int, size_t, ssize_t};
 use std::mem;
 use std::rt::task::BlockedTask;
 
-// use Loop;
-// use super::{UvError, Buf, slice_to_uv_buf, Request, wait_until_woken_after,
-//             ForbidUnwind, wakeup};
 use raw::{mod, Handle, Request};
 use {uvll, UvResult, UvError};
 
