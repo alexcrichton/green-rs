@@ -12,7 +12,7 @@ use std::io::net::ip;
 use std::mem;
 use libc;
 
-use raw::{mod, Loop, Handle, Allocated, Raw, Stream};
+use raw::{mod, Loop, Handle, Allocated, Raw};
 use {uvll, UvResult};
 
 pub struct Udp {
@@ -134,7 +134,3 @@ impl Handle<uvll::uv_udp_t> for Udp {
     fn raw(&self) -> *mut uvll::uv_udp_t { self.handle }
     fn from_raw(t: *mut uvll::uv_udp_t) -> Udp { Udp { handle: t } }
 }
-
-impl Stream<uvll::uv_udp_t> for Udp {}
-
-
