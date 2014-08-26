@@ -18,10 +18,10 @@ use libc;
 
 use access::Access;
 use homing::{HomingIO, HomeHandle};
-use raw::Handle;
+use raw::{Handle, Request};
 use stream::Stream;
 use timeout::{Pusher, AcceptTimeout, ConnectCtx, AccessTimeout};
-use {raw, uvll, net, EventLoop, UvResult, UvError};
+use {raw, uvll, EventLoop, UvResult, UvError};
 
 pub struct Tcp {
     data: Arc<TcpData>,
@@ -146,7 +146,7 @@ impl Tcp {
 
     pub fn close_write(&mut self) -> UvResult<()> {
         let _m = self.data.fire_homing_missile();
-        net::shutdown(self.stream.handle)
+        shutdown(self.stream.handle)
     }
 
     pub fn set_read_timeout(&mut self, dur: Option<Duration>) {
@@ -352,3 +352,41 @@ impl HomingIO for TcpAcceptor {
     fn home(&self) -> &HomeHandle { &self.data.listener.home }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Shutdown helper
+////////////////////////////////////////////////////////////////////////////////
+
+pub fn shutdown<T, U>(mut handle: U) -> UvResult<()>
+                      where T: raw::Allocated, U: raw::Stream<T> {
+    struct Ctx {
+        slot: Option<BlockedTask>,
+        status: libc::c_int,
+    }
+    unsafe {
+        let mut req: raw::Shutdown = raw::Request::alloc();
+        let mut cx = Ctx { slot: None, status: 0 };
+        req.set_data(&mut cx as *mut _ as *mut _);
+
+        let ret = match req.send(&mut handle, shutdown_cb) {
+            Ok(()) => {
+                ::block(handle.uv_loop(), |task| {
+                    cx.slot = Some(task);
+                });
+                if cx.status < 0 {Err(UvError(cx.status))} else {Ok(())}
+            }
+            Err(e) => Err(e),
+        };
+        req.free();
+        return ret;
+    }
+
+    extern fn shutdown_cb(req: *mut uvll::uv_shutdown_t, status: libc::c_int) {
+        unsafe {
+            assert!(status != uvll::ECANCELED);
+            let req: raw::Shutdown = raw::Request::from_raw(req);
+            let cx: &mut Ctx = mem::transmute(req.get_data());
+            cx.status = status;
+            ::wakeup(&mut cx.slot);
+        }
+    }
+}

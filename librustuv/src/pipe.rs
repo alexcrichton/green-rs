@@ -21,7 +21,7 @@ use homing::{HomingIO, HomeHandle};
 use raw::Handle;
 use stream::Stream;
 use timeout::{Pusher, AcceptTimeout, ConnectCtx, AccessTimeout};
-use {raw, uvll, net, EventLoop, UvResult, UvError};
+use {raw, uvll, tcp, EventLoop, UvResult, UvError};
 
 pub struct Pipe {
     data: Arc<PipeData>,
@@ -161,7 +161,7 @@ impl Pipe {
 
     pub fn close_write(&mut self) -> UvResult<()> {
         let _m = self.data.fire_homing_missile();
-        net::shutdown(self.stream.handle)
+        tcp::shutdown(self.stream.handle)
     }
 
     pub fn set_read_timeout(&mut self, dur: Option<Duration>) {

@@ -79,7 +79,7 @@ impl Udp {
         }
     }
 
-    pub fn set_broadcast(&mut self, on: int) -> UvResult<()> {
+    pub fn set_broadcast(&mut self, on: bool) -> UvResult<()> {
         unsafe {
             let on = on as libc::c_int;
             try!(call!(uvll::uv_udp_set_broadcast(self.handle, on)));

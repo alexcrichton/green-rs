@@ -65,6 +65,7 @@ pub use signal::Signal;
 pub use tcp::{Tcp, TcpListener, TcpAcceptor};
 pub use timer::Timer;
 pub use tty::Tty;
+pub use udp::Udp;
 
 mod macros;
 
@@ -72,7 +73,6 @@ mod access;
 mod timeout;
 pub mod homing;
 mod queue;
-// mod rc;
 
 pub mod uvll;
 
@@ -83,7 +83,6 @@ mod addrinfo;
 mod async;
 pub mod fs;
 mod idle;
-mod net;
 mod pipe;
 // mod process;
 mod signal;
@@ -91,6 +90,7 @@ mod stream;
 mod tcp;
 mod timer;
 mod tty;
+mod udp;
 
 // /// Creates a new event loop which is powered by libuv
 // ///
@@ -345,6 +345,8 @@ fn wakeup(slot: &mut Option<BlockedTask>) {
 // }
 
 pub type UvResult<T> = Result<T, UvError>;
+
+#[deriving(Eq, PartialEq, Clone)]
 pub struct UvError(c_int);
 
 impl UvError {

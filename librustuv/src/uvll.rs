@@ -244,7 +244,7 @@ impl uv_stat_t {
 }
 
 pub type uv_idle_cb = extern "C" fn(handle: *mut uv_idle_t);
-pub type uv_alloc_cb = extern "C" fn(stream: *mut uv_stream_t,
+pub type uv_alloc_cb = extern "C" fn(stream: *mut uv_handle_t,
                                      suggested_size: size_t,
                                      buf: *mut uv_buf_t);
 pub type uv_read_cb = extern "C" fn(stream: *mut uv_stream_t,

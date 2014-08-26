@@ -145,7 +145,7 @@ impl<T: raw::Allocated, U: raw::Stream<T>> Stream<U> {
 // This allocation callback expects to be invoked once and only once. It will
 // unwrap the buffer in the ReadContext stored in the stream and return it. This
 // will fail if it is called more than once.
-extern fn alloc_cb<T, U>(stream: *mut uvll::uv_stream_t, _hint: size_t,
+extern fn alloc_cb<T, U>(stream: *mut uvll::uv_handle_t, _hint: size_t,
                          buf: *mut uvll::uv_buf_t)
                          where T: raw::Allocated, U: raw::Stream<T> {
     uvdebug!("alloc_cb");

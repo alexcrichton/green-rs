@@ -30,6 +30,7 @@ mod pipe;
 mod signal;
 mod tcp;
 mod timer;
+mod udp;
 
 struct SchedulerExiter { handle: SchedHandle }
 impl Drop for SchedulerExiter {
