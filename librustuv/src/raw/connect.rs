@@ -23,7 +23,7 @@ pub struct Connect {
 impl Connect {
     pub fn pipe_connect(&mut self,
                         handle: Pipe,
-                        name: CString,
+                        name: &CString,
                         cb: uvll::uv_connect_cb) {
         unsafe {
             uvll::uv_pipe_connect(self.handle,

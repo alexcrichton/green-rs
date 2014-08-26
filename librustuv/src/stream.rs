@@ -99,16 +99,16 @@ impl<T: raw::Allocated, U: raw::Stream<T>> Stream<U> {
         return ret;
     }
 
-    pub fn cancel_read(&mut self, reason: ssize_t) -> Option<BlockedTask> {
+    pub fn cancel_read(mut handle: U, reason: ssize_t) -> Option<BlockedTask> {
         // When we invoke uv_read_stop, it cancels the read and alloc
         // callbacks. We need to manually wake up a pending task (if one was
         // present).
-        self.handle.read_stop().unwrap();
-        let data = self.handle.get_data();
+        handle.read_stop().unwrap();
+        let data = handle.get_data();
         if data.is_null() { return None }
 
         unsafe {
-            self.handle.set_data(0 as *mut _);
+            handle.set_data(0 as *mut _);
             let data: &mut ReadContext = &mut *(data as *mut ReadContext);
             data.result = reason;
             data.task.take()

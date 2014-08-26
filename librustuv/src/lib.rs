@@ -60,14 +60,15 @@ pub use async::Async;
 pub use event_loop::EventLoop;
 pub use fs::File;
 pub use idle::Idle;
+pub use pipe::{Pipe, PipeListener, PipeAcceptor};
 pub use signal::Signal;
 pub use timer::Timer;
 pub use tty::Tty;
 
 mod macros;
 
-// mod access;
-// mod timeout;
+mod access;
+mod timeout;
 pub mod homing;
 mod queue;
 // mod rc;
@@ -79,11 +80,10 @@ mod event_loop;
 
 mod addrinfo;
 mod async;
-// mod file;
 pub mod fs;
 mod idle;
 mod net;
-// mod pipe;
+mod pipe;
 // mod process;
 mod signal;
 mod stream;

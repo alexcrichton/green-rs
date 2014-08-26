@@ -14,8 +14,8 @@ use std::mem;
 // use std::ptr;
 // use std::rt::rtio;
 // use std::rt::rtio::IoError;
-// use std::rt::task::BlockedTask;
-use std::io::net::ip;
+use std::rt::task::BlockedTask;
+// use std::io::net::ip;
 
 // use homing::{HomingIO, HomeHandle};
 // use rc::Refcount;
@@ -26,6 +26,9 @@ use std::io::net::ip;
 // use timeout::{AccessTimeout, ConnectCtx, AcceptTimeout};
 // use uvio::UvIoFactory;
 // use uvll;
+
+use {raw, uvll, UvResult, UvError};
+use raw::{Request, Handle};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Generic functions related to dealing with sockaddr things
@@ -756,40 +759,45 @@ use std::io::net::ip;
 //     }
 // }
 //
-// ////////////////////////////////////////////////////////////////////////////////
-// // Shutdown helper
-// ////////////////////////////////////////////////////////////////////////////////
-//
-// pub fn shutdown(handle: *mut uvll::uv_stream_t, loop_: &Loop) -> Result<(), IoError> {
-//     struct Ctx {
-//         slot: Option<BlockedTask>,
-//         status: c_int,
-//     }
-//     let mut req = Request::new(uvll::UV_SHUTDOWN);
-//
-//     return match unsafe { uvll::uv_shutdown(req.handle, handle, shutdown_cb) } {
-//         0 => {
-//             req.defuse(); // uv callback now owns this request
-//             let mut cx = Ctx { slot: None, status: 0 };
-//
-//             wait_until_woken_after(&mut cx.slot, loop_, || {
-//                 req.set_data(&mut cx);
-//             });
-//
-//             status_to_io_result(cx.status)
-//         }
-//         n => Err(uv_error_to_io_error(UvError(n)))
-//     };
-//
-//     extern fn shutdown_cb(req: *mut uvll::uv_shutdown_t, status: libc::c_int) {
-//         let req = Request::wrap(req);
-//         assert!(status != uvll::ECANCELED);
-//         let cx: &mut Ctx = unsafe { req.get_data() };
-//         cx.status = status;
-//         wakeup(&mut cx.slot);
-//     }
-// }
-//
+////////////////////////////////////////////////////////////////////////////////
+// Shutdown helper
+////////////////////////////////////////////////////////////////////////////////
+
+pub fn shutdown<T, U>(mut handle: U) -> UvResult<()>
+                      where T: raw::Allocated, U: raw::Stream<T> {
+    struct Ctx {
+        slot: Option<BlockedTask>,
+        status: libc::c_int,
+    }
+    unsafe {
+        let mut req: raw::Shutdown = raw::Request::alloc();
+        let mut cx = Ctx { slot: None, status: 0 };
+        req.set_data(&mut cx as *mut _ as *mut _);
+
+        let ret = match req.send(&mut handle, shutdown_cb) {
+            Ok(()) => {
+                ::block(handle.uv_loop(), |task| {
+                    cx.slot = Some(task);
+                });
+                if cx.status < 0 {Err(UvError(cx.status))} else {Ok(())}
+            }
+            Err(e) => Err(e),
+        };
+        req.free();
+        return ret;
+    }
+
+    extern fn shutdown_cb(req: *mut uvll::uv_shutdown_t, status: libc::c_int) {
+        unsafe {
+            assert!(status != uvll::ECANCELED);
+            let req: raw::Shutdown = raw::Request::from_raw(req);
+            let cx: &mut Ctx = mem::transmute(req.get_data());
+            cx.status = status;
+            ::wakeup(&mut cx.slot);
+        }
+    }
+}
+
 // #[cfg(test)]
 // mod test {
 //     use std::rt::rtio::{RtioTcpStream, RtioTcpListener, RtioTcpAcceptor,

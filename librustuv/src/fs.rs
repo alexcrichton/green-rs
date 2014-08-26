@@ -149,6 +149,13 @@ impl File {
             n => Ok(n as u64)
         }
     }
+
+    /// Gain access to the underlying raw file descriptor.
+    ///
+    /// This function is unsafe as there is no guarantee that any safe
+    /// modifications to the timer handle are actually safe to perform given the
+    /// assumptions of this object.
+    pub unsafe fn fd(&self) -> libc::c_int { self.fd }
 }
 
 impl Reader for File {

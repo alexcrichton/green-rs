@@ -84,10 +84,17 @@ impl Tty {
     // One day we may support creating instances of a tty which don't
     // correspond to an actual underlying TTY, so this is a method.
     pub fn isatty(&self) -> bool { true }
+
+    /// Gain access to the underlying raw tty object.
+    ///
+    /// This function is unsafe as there is no guarantee that any safe
+    /// modifications to the tty handle are actually safe to perform given the
+    /// assumptions of this object.
+    pub unsafe fn raw(&self) -> raw::Tty { self.stream.handle }
 }
 
 impl HomingIO for Tty {
-    fn home<'a>(&'a mut self) -> &'a mut HomeHandle { &mut self.home }
+    fn home(&self) -> &HomeHandle { &self.home }
 }
 
 impl Reader for Tty {

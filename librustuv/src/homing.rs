@@ -56,14 +56,14 @@ impl HomeHandle {
         HomeHandle { queue: pool.queue(), id: id }
     }
 
-    fn send(&mut self, task: BlockedTask) {
+    fn send(&self, task: BlockedTask) {
         self.queue.push(task);
     }
 
     /// This function will move tasks to run on their home I/O scheduler. Note
     /// that this function does *not* pin the task to the I/O scheduler, but
     /// rather it simply moves it to running on the I/O scheduler.
-    fn go_home(&mut self) -> uint {
+    fn go_home(&self) -> uint {
         let _f = ForbidUnwind::new("going home");
 
         let cur_loop_id = local_id();
@@ -90,17 +90,17 @@ impl HomeHandle {
 }
 
 pub fn local_id() -> uint {
-    &*EventLoop::borrow().unwrap() as *const _ as uint
+    unsafe { EventLoop::borrow_raw().unwrap() as uint }
 }
 
 pub trait HomingIO {
-    fn home<'r>(&'r mut self) -> &'r mut HomeHandle;
+    fn home(&self) -> &HomeHandle;
 
     /// Fires a single homing missile, returning another missile targeted back
     /// at the original home of this task. In other words, this function will
     /// move the local task to its I/O scheduler and then return an RAII wrapper
     /// which will return the task home.
-    fn fire_homing_missile(&mut self) -> HomingMissile {
+    fn fire_homing_missile(&self) -> HomingMissile {
         HomingMissile { io_home: self.home().go_home() }
     }
 }

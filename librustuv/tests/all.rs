@@ -26,6 +26,7 @@ mod async;
 mod event_loop;
 mod fs;
 mod idle;
+mod pipe;
 mod signal;
 mod timer;
 

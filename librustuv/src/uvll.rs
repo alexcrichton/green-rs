@@ -266,7 +266,7 @@ pub type uv_walk_cb = extern "C" fn(handle: *mut uv_handle_t,
 pub type uv_async_cb = extern "C" fn(handle: *mut uv_async_t);
 pub type uv_connect_cb = extern "C" fn(handle: *mut uv_connect_t,
                                        status: c_int);
-pub type uv_connection_cb = extern "C" fn(handle: *mut uv_connection_t,
+pub type uv_connection_cb = extern "C" fn(handle: *mut uv_stream_t,
                                           status: c_int);
 pub type uv_timer_cb = extern "C" fn(handle: *mut uv_timer_t);
 pub type uv_write_cb = extern "C" fn(handle: *mut uv_write_t,

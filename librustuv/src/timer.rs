@@ -169,7 +169,7 @@ extern fn timer_cb(timer: *mut uvll::uv_timer_t) {
 }
 
 impl HomingIO for Timer {
-    fn home<'r>(&'r mut self) -> &'r mut HomeHandle { &mut self.home }
+    fn home(&self) -> &HomeHandle { &self.home }
 }
 
 impl Drop for Timer {

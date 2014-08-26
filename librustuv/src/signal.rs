@@ -77,6 +77,13 @@ impl Signal {
         };
         Ok(())
     }
+
+    /// Gain access to the underlying raw signal handle.
+    ///
+    /// This function is unsafe as there is no guarantee that any safe
+    /// modifications to the signal handle are actually safe to perform given the
+    /// assumptions of this object.
+    pub unsafe fn raw(&self) -> raw::Signal { self.handle }
 }
 
 extern fn signal_cb(handle: *mut uvll::uv_signal_t, _signum: libc::c_int) {
@@ -89,7 +96,7 @@ extern fn signal_cb(handle: *mut uvll::uv_signal_t, _signum: libc::c_int) {
 }
 
 impl HomingIO for Signal {
-    fn home<'r>(&'r mut self) -> &'r mut HomeHandle { &mut self.home }
+    fn home(&self) -> &HomeHandle { &self.home }
 }
 
 impl Drop for Signal {

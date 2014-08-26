@@ -14,11 +14,11 @@
 /// It is assumed that all invocations of this struct happen on the same thread
 /// (the uv event loop).
 
-use alloc::arc::Arc;
+use std::cell::UnsafeCell;
 use std::mem;
 use std::rt::local::Local;
 use std::rt::task::{BlockedTask, Task};
-use std::cell::UnsafeCell;
+use std::sync::Arc;
 
 use homing::HomingMissile;
 

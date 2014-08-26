@@ -132,7 +132,7 @@ impl QueuePool {
 }
 
 impl Queue {
-    pub fn push(&mut self, task: BlockedTask) {
+    pub fn push(&self, task: BlockedTask) {
         self.state.queue.push(Task(task));
         self.state.handle.send();
     }

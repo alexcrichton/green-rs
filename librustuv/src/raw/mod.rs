@@ -21,7 +21,9 @@ pub use self::fs::Fs;
 pub use self::getaddrinfo::GetAddrInfo;
 pub use self::idle::Idle;
 pub use self::loop_::Loop;
+// pub use self::owned::{OwnedHandle, OwnedRequest};
 pub use self::pipe::Pipe;
+pub use self::shutdown::Shutdown;
 pub use self::signal::Signal;
 pub use self::tcp::Tcp;
 pub use self::timer::Timer;
@@ -43,7 +45,9 @@ mod fs;
 mod getaddrinfo;
 mod idle;
 mod loop_;
+// mod owned;
 mod pipe;
+mod shutdown;
 mod signal;
 mod tcp;
 mod timer;
@@ -159,7 +163,7 @@ pub trait Stream<T: Allocated>: Handle<T> {
         }
     }
 
-    fn accept(&mut self, other: &mut Self) -> UvResult<()> {
+    fn accept(&mut self, other: Self) -> UvResult<()> {
         unsafe {
             try!(call!(uvll::uv_accept(self.raw() as *mut _,
                                        other.raw() as *mut _)));

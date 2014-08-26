@@ -18,7 +18,7 @@ use raw::{mod, Loop, Handle};
 use queue::QueuePool;
 use homing::HomeHandle;
 
-tls!(local_loop: Cell<*mut EventLoop>)
+tls!(local_loop: Cell<(*mut EventLoop, bool)>)
 
 pub struct EventLoop {
     uv_loop: Loop,
@@ -50,9 +50,9 @@ impl EventLoop {
         let local = unsafe {
             local_loop.get(|local| {
                 local.and_then(|c| {
-                    match c.get() as uint {
-                        0 => None,
-                        n => { c.set(0 as *mut _); Some(n as *mut EventLoop) }
+                    match c.get() {
+                        (_, true) => None,
+                        (p, false) => { c.set((p, true)); Some(p) }
                     }
                 })
             })
@@ -63,6 +63,15 @@ impl EventLoop {
                 marker1: marker::NoSend,
                 marker2: marker::NoSync,
             }),
+            None => Err(UvError(uvll::UNKNOWN))
+        }
+    }
+
+    /// Borrow an unsafe pointer to the local event loop
+    pub unsafe fn borrow_raw() -> UvResult<*mut EventLoop> {
+        let local = local_loop.get(|local| local.map(|c| c.get().val0()));
+        match local {
+            Some(eloop) => Ok(eloop),
             None => Err(UvError(uvll::UNKNOWN))
         }
     }
@@ -88,7 +97,7 @@ impl EventLoop {
 
 impl green::EventLoop for EventLoop {
     fn run(&mut self) {
-        let tls = Cell::new(self as *mut _);
+        let tls = Cell::new((self as *mut _, false));
         unsafe {
             local_loop.set(&tls, || {
                 self.uv_loop.run(uvll::RUN_DEFAULT).unwrap();
@@ -170,7 +179,7 @@ impl DerefMut<EventLoop> for BorrowedEventLoop {
 impl Drop for BorrowedEventLoop {
     fn drop(&mut self) {
         unsafe {
-            local_loop.get(|l| l.unwrap().set(self.local))
+            local_loop.get(|l| l.unwrap().set((self.local, false)))
         }
     }
 }
