@@ -30,7 +30,7 @@ struct Inner<T> {
     access: access::Access<T>,
 }
 
-pub struct Guard<'a, T> {
+pub struct Guard<'a, T: 'a> {
     state: &'a mut TimeoutState,
     pub access: access::Guard<'a, T>,
     pub can_timeout: bool,

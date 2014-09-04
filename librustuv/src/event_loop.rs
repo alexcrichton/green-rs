@@ -91,7 +91,7 @@ impl EventLoop {
         // It's understood by the homing code that the "local id" is just the
         // pointer of the local I/O factory cast to a uint.
         let id: uint = self as *mut _ as uint;
-        HomeHandle::new(id, &mut **self.pool.get_mut_ref())
+        HomeHandle::new(id, &mut **self.pool.as_mut().unwrap())
     }
 }
 
@@ -153,7 +153,7 @@ impl Drop for EventLoop {
         // Lastly, after we've closed the pool of handles we pump the event loop
         // one last time to run any closing callbacks to make sure the loop
         // shuts down cleanly.
-        let mut handle = self.pool.get_ref().handle();
+        let mut handle = self.pool.as_ref().unwrap().handle();
         drop(self.pool.take());
         self.run();
 

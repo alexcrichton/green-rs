@@ -11,7 +11,7 @@ fn sender(tx: Sender<()>) -> Box<Callback + Send> {
     box MySender { tx: tx } as Box<Callback + Send>
 }
 
-fn ms(n: i32) -> Duration { Duration::milliseconds(n) }
+fn ms(n: i64) -> Duration { Duration::milliseconds(n) }
 
 test!(fn test_io_timer_sleep_simple() {
     let mut timer = Timer::new().unwrap();

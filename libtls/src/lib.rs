@@ -22,7 +22,7 @@ mod imp {
         pub ptr: UnsafeCell<*mut T>,
     }
 
-    struct Reset<T> {
+    struct Reset<T: 'static> {
         key: &'static Key<T>,
         val: *mut T,
     }
