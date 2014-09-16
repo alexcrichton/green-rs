@@ -2,6 +2,7 @@ use std::str;
 use std::os;
 use std::rand::{mod, StdRng, Rng};
 use std::io::{mod, Open, Read, SeekSet, SeekCur, SeekEnd, ReadWrite};
+use std::io::fs::PathExtensions;
 
 use rustuv::fs::{File, rmdir, mkdir, readdir, mkdir_recursive, rmdir_recursive,
                  unlink, stat, symlink, link, copy,

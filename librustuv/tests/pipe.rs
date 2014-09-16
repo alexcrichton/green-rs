@@ -1,4 +1,5 @@
 use std::io::test::next_test_unix;
+use std::io::fs::PathExtensions;
 use std::time::Duration;
 use green::task::spawn;
 

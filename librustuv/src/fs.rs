@@ -366,8 +366,9 @@ impl Drop for Fs {
 pub fn mkdir_recursive(path: &Path, mode: io::FilePermission) -> UvResult<()> {
     // tjc: if directory exists but with different permissions,
     // should we return false?
-    if path.is_dir() {
-        return Ok(())
+    match stat(path) {
+        Ok(ref s) if s.kind == io::TypeDirectory => return Ok(()),
+        _ => {}
     }
 
     let mut comps = path.components();
