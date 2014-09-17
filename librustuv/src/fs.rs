@@ -410,7 +410,7 @@ pub fn rmdir_recursive(path: &Path) -> UvResult<()> {
 
         // delete all regular files in the way and push subdirs
         // on the stack
-        for child in children.move_iter() {
+        for child in children.into_iter() {
             let child_type = try!(lstat(&child));
 
             if child_type.kind == io::TypeDirectory {
