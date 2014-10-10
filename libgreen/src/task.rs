@@ -122,7 +122,7 @@ pub fn spawn_opts(opts: TaskOpts, f: proc(): Send) {
     //
     // Upon returning, our task is back in TLS and we're good to return.
     let sibling = {
-        let sched = bomb.inner.get_mut_ref().sched.get_mut_ref();
+        let sched = bomb.inner.as_mut().unwrap().sched.as_mut().unwrap();
         GreenTask::configure(&mut sched.stack_pool, opts, f)
     };
     let mut me = bomb.inner.take().unwrap();
@@ -151,7 +151,7 @@ extern fn bootstrap_green_task(task: uint, code: *mut (), env: *mut ()) -> ! {
 
     // First code after swap to this new context. Run our cleanup job
     task.pool_id = {
-        let sched = task.sched.get_mut_ref();
+        let sched = task.sched.as_mut().unwrap();
         sched.run_cleanup_job();
         sched.task_state.increment();
         sched.pool_id
@@ -161,7 +161,7 @@ extern fn bootstrap_green_task(task: uint, code: *mut (), env: *mut ()) -> ! {
     // requested. This is the "try/catch" block for this green task and
     // is the wrapper for *all* code run in the task.
     let mut start = Some(start);
-    let task = task.swap().run(|| start.take_unwrap()()).destroy();
+    let task = task.swap().run(|| start.take().unwrap()()).destroy();
 
     // Once the function has exited, it's time to run the termination
     // routine. This means we need to context switch one more time but
@@ -231,7 +231,7 @@ impl GreenTask {
 
         let mut green = GreenTask::new(pool, stack_size, f);
         {
-            let task = green.task.get_mut_ref();
+            let task = green.task.as_mut().unwrap();
             task.name = name;
             task.death.on_exit = on_exit;
         }
@@ -264,7 +264,7 @@ impl GreenTask {
 
     pub fn take_unwrap_home(&mut self) -> Home {
         match self.task_type {
-            TypeGreen(ref mut home) => home.take_unwrap(),
+            TypeGreen(ref mut home) => home.take().unwrap(),
             TypeSched => rtabort!("type error: used SchedTask as GreenTask"),
         }
     }
@@ -329,7 +329,7 @@ impl GreenTask {
     }
 
     pub fn swap(mut self: Box<GreenTask>) -> Box<Task> {
-        let mut task = self.task.take_unwrap();
+        let mut task = self.task.take().unwrap();
         task.put_runtime(self);
         return task;
     }
@@ -340,7 +340,7 @@ impl GreenTask {
     }
 
     fn terminate(mut self: Box<GreenTask>) -> ! {
-        let sched = self.sched.take_unwrap();
+        let sched = self.sched.take().unwrap();
         sched.terminate_current_task(self)
     }
 
@@ -366,7 +366,7 @@ impl GreenTask {
     fn reawaken_remotely(mut self: Box<GreenTask>) {
         unsafe {
             let mtx = &mut self.nasty_deschedule_lock as *mut NativeMutex;
-            let handle = self.handle.get_mut_ref() as *mut SchedHandle;
+            let handle = self.handle.as_mut().unwrap() as *mut SchedHandle;
             let _guard = (*mtx).lock();
             (*handle).send(RunOnce(self));
         }
@@ -376,13 +376,13 @@ impl GreenTask {
 impl Runtime for GreenTask {
     fn yield_now(mut self: Box<GreenTask>, cur_task: Box<Task>) {
         self.put_task(cur_task);
-        let sched = self.sched.take_unwrap();
+        let sched = self.sched.take().unwrap();
         sched.yield_now(self);
     }
 
     fn maybe_yield(mut self: Box<GreenTask>, cur_task: Box<Task>) {
         self.put_task(cur_task);
-        let sched = self.sched.take_unwrap();
+        let sched = self.sched.take().unwrap();
         sched.maybe_yield(self);
     }
 
@@ -391,7 +391,7 @@ impl Runtime for GreenTask {
                   cur_task: Box<Task>,
                   f: |BlockedTask| -> Result<(), BlockedTask>) {
         self.put_task(cur_task);
-        let mut sched = self.sched.take_unwrap();
+        let mut sched = self.sched.take().unwrap();
 
         // In order for this task to be reawoken in all possible contexts, we
         // may need a handle back in to the current scheduler. When we're woken
@@ -470,7 +470,7 @@ impl Runtime for GreenTask {
         match running_task.maybe_take_runtime::<GreenTask>() {
             Some(mut running_green_task) => {
                 running_green_task.put_task(running_task);
-                let sched = running_green_task.sched.take_unwrap();
+                let sched = running_green_task.sched.take().unwrap();
 
                 if sched.pool_id == self.pool_id {
                     sched.run_task(running_green_task, self);

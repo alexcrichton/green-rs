@@ -212,7 +212,7 @@
 
 // NB this does *not* include globs, please keep it that way.
 #![feature(macro_rules, phase, default_type_params)]
-#![allow(visible_private_types, deprecated)]
+#![allow(deprecated)]
 
 #[cfg(test)] #[phase(plugin, link)] extern crate log;
 extern crate libc;
@@ -298,7 +298,7 @@ pub fn start(argc: int, argv: *const *const u8,
     let mut main = Some(main);
     let mut ret = None;
     simple::task().run(|| {
-        ret = Some(run(event_loop_factory, main.take_unwrap()));
+        ret = Some(run(event_loop_factory, main.take().unwrap()));
     }).destroy();
     // unsafe is ok b/c we're sure that the runtime is gone
     unsafe { rt::cleanup() }
@@ -428,7 +428,7 @@ impl SchedPool {
         // Now that we've got all our work queues, create one scheduler per
         // queue, spawn the scheduler into a thread, and be sure to keep a
         // handle to the scheduler and the thread to keep them alive.
-        for worker in workers.move_iter() {
+        for worker in workers.into_iter() {
             rtdebug!("inserting a regular scheduler");
 
             let mut sched = box Scheduler::new(pool.id,
@@ -486,7 +486,7 @@ impl SchedPool {
 
         // Tell all existing schedulers about this new scheduler so they can all
         // steal work from it
-        for handle in self.handles.mut_iter() {
+        for handle in self.handles.iter_mut() {
             handle.send(NewNeighbor(stealer.clone()));
         }
 
@@ -528,10 +528,10 @@ impl SchedPool {
         }
 
         // Now that everyone's gone, tell everything to shut down.
-        for mut handle in replace(&mut self.handles, vec![]).move_iter() {
+        for mut handle in replace(&mut self.handles, vec![]).into_iter() {
             handle.send(Shutdown);
         }
-        for thread in replace(&mut self.threads, vec![]).move_iter() {
+        for thread in replace(&mut self.threads, vec![]).into_iter() {
             thread.join();
         }
     }
