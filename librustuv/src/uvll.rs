@@ -623,23 +623,22 @@ extern {
 
 // libuv doesn't use pthread on windows
 // android libc (bionic) provides pthread, so no additional link is required
-#[cfg(not(windows), not(target_os = "android"))]
+#[cfg(all(not(windows), not(target_os = "android")))]
 #[link(name = "pthread")]
 extern {}
 
-#[cfg(target_os = "linux")]
-#[cfg(target_os = "dragonfly")]
+#[cfg(any(target_os = "linux",
+          target_os = "dragonfly"))]
 #[link(name = "rt")]
 extern {}
 
-#[cfg(target_os = "windows")]
-#[cfg(stage0, target_os = "win32")] // NOTE: Remove after snapshot
+#[cfg(windows)]
 #[link(name = "ws2_32")]
 #[link(name = "psapi")]
 #[link(name = "iphlpapi")]
 extern {}
 
-#[cfg(target_os = "freebsd")]
-#[cfg(target_os = "dragonfly")]
+#[cfg(any(target_os = "freebsd",
+          target_os = "dragonfly"))]
 #[link(name = "kvm")]
 extern {}

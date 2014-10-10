@@ -79,7 +79,7 @@ test!(fn oneshot() {
     assert!(rx.recv_opt().is_err());
 })
 
-test!(fn override() {
+test!(fn overrides() {
     let mut timer = Timer::new().unwrap();
     let (otx, orx) = channel();
     let (ptx, prx) = channel();

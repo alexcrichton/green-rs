@@ -84,28 +84,28 @@ impl File {
     pub fn path(&self) -> &Path { &self.path }
 
     pub fn fsync(&self) -> UvResult<()> {
-        let mut eloop = try!(EventLoop::borrow());
+        let eloop = try!(EventLoop::borrow());
         execute_nop(|req, cb| unsafe {
             req.fsync(eloop.uv_loop(), self.fd, cb)
         })
     }
 
     pub fn datasync(&self) -> UvResult<()> {
-        let mut eloop = try!(EventLoop::borrow());
+        let eloop = try!(EventLoop::borrow());
         execute_nop(|req, cb| unsafe {
             req.fdatasync(eloop.uv_loop(), self.fd, cb)
         })
     }
 
     pub fn truncate(&self, size: i64) -> UvResult<()> {
-        let mut eloop = try!(EventLoop::borrow());
+        let eloop = try!(EventLoop::borrow());
         execute_nop(|req, cb| unsafe {
             req.ftruncate(eloop.uv_loop(), self.fd, size, cb)
         })
     }
 
     pub fn stat(&self) -> UvResult<io::FileStat> {
-        let mut eloop = try!(EventLoop::borrow());
+        let eloop = try!(EventLoop::borrow());
         execute(|req, cb| unsafe {
             req.fstat(eloop.uv_loop(), self.fd, cb)
         }).map(|req| req.handle.io_stat())
@@ -116,7 +116,7 @@ impl File {
     /// If `pos` is -1, then the data will be read from the current position in
     /// the file.
     pub fn read_at(&mut self, into: &mut [u8], pos: i64) -> UvResult<uint> {
-        let mut eloop = try!(EventLoop::borrow());
+        let eloop = try!(EventLoop::borrow());
         execute(|req, cb| unsafe {
             req.read(eloop.uv_loop(), self.fd, into, pos, cb)
         }).and_then(|req| {
@@ -132,7 +132,7 @@ impl File {
     /// If `pos` is -1, then the data will be written at the current position in
     /// the file.
     pub fn write_at(&mut self, buf: &[u8], pos: i64) -> UvResult<()> {
-        let mut eloop = try!(EventLoop::borrow());
+        let eloop = try!(EventLoop::borrow());
         let mut amt = 0;
         while amt < buf.len() {
             let pos = if pos == -1 {pos} else {pos + amt as i64};
@@ -186,7 +186,7 @@ impl Seek for File {
 
 impl Drop for File {
     fn drop(&mut self) {
-        let mut eloop = EventLoop::borrow().unwrap();
+        let eloop = EventLoop::borrow().unwrap();
         let _ = execute_nop(|req, cb| unsafe {
             req.close(eloop.uv_loop(), self.fd, cb)
         });

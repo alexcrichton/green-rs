@@ -48,7 +48,7 @@ impl Drop for TempDir {
 
 pub fn tmpdir() -> TempDir {
     let ret = os::tmpdir().join(format!("rust-{}", rand::random::<u32>()));
-    check!(mkdir(&ret, io::UserRWX));
+    check!(mkdir(&ret, io::USER_RWX));
     TempDir(ret)
 }
 
@@ -107,11 +107,11 @@ test!(fn file_test_io_non_positional_read() {
     {
         let mut read_stream = check!(File::open_mode(filename, Open, Read));
         {
-            let read_buf = read_mem.mut_slice(0, 4);
+            let read_buf = read_mem.slice_mut(0, 4);
             check!(read_stream.read(read_buf));
         }
         {
-            let read_buf = read_mem.mut_slice(4, 8);
+            let read_buf = read_mem.slice_mut(4, 8);
             check!(read_stream.read(read_buf));
         }
     }
@@ -220,7 +220,7 @@ test!(fn file_test_stat_is_correct_on_is_file() {
 test!(fn file_test_stat_is_correct_on_is_dir() {
     let tmpdir = tmpdir();
     let filename = &tmpdir.join("file_stat_correct_on_is_dir");
-    check!(mkdir(filename, io::UserRWX));
+    check!(mkdir(filename, io::USER_RWX));
     let stat_res_fn = check!(stat(filename));
     assert!(stat_res_fn.kind == io::TypeDirectory);
     let stat_res_meth = check!(filename.stat());
@@ -231,7 +231,7 @@ test!(fn file_test_stat_is_correct_on_is_dir() {
 test!(fn file_test_fileinfo_false_when_checking_is_file_on_a_directory() {
     let tmpdir = tmpdir();
     let dir = &tmpdir.join("fileinfo_false_on_dir");
-    check!(mkdir(dir, io::UserRWX));
+    check!(mkdir(dir, io::USER_RWX));
     assert!(dir.is_file() == false);
     check!(rmdir(dir));
 })
@@ -249,7 +249,7 @@ test!(fn file_test_directoryinfo_check_exists_before_and_after_mkdir() {
     let tmpdir = tmpdir();
     let dir = &tmpdir.join("before_and_after_dir");
     assert!(!dir.exists());
-    check!(mkdir(dir, io::UserRWX));
+    check!(mkdir(dir, io::USER_RWX));
     assert!(dir.exists());
     assert!(dir.is_dir());
     check!(rmdir(dir));
@@ -259,7 +259,7 @@ test!(fn file_test_directoryinfo_check_exists_before_and_after_mkdir() {
 test!(fn file_test_directoryinfo_readdir() {
     let tmpdir = tmpdir();
     let dir = &tmpdir.join("di_readdir");
-    check!(mkdir(dir, io::UserRWX));
+    check!(mkdir(dir, io::USER_RWX));
     let prefix = "foo";
     for n in range(0i,3) {
         let f = dir.join(format!("{}.txt", n));
@@ -289,7 +289,7 @@ test!(fn file_test_directoryinfo_readdir() {
 test!(fn recursive_mkdir() {
     let tmpdir = tmpdir();
     let dir = tmpdir.join("d1/d2");
-    check!(mkdir_recursive(&dir, io::UserRWX));
+    check!(mkdir_recursive(&dir, io::USER_RWX));
     assert!(dir.is_dir())
 })
 
@@ -298,15 +298,15 @@ test!(fn recursive_mkdir_failure() {
     let dir = tmpdir.join("d1");
     let file = dir.join("f1");
 
-    check!(mkdir_recursive(&dir, io::UserRWX));
+    check!(mkdir_recursive(&dir, io::USER_RWX));
     check!(File::create(&file));
 
-    let result = mkdir_recursive(&file, io::UserRWX);
+    let result = mkdir_recursive(&file, io::USER_RWX);
     assert!(result.is_err());
 })
 
 test!(fn recursive_mkdir_slash() {
-    check!(mkdir_recursive(&Path::new("/"), io::UserRWX));
+    check!(mkdir_recursive(&Path::new("/"), io::USER_RWX));
 })
 
 test!(fn recursive_rmdir() {
@@ -316,8 +316,8 @@ test!(fn recursive_rmdir() {
     let dtt = dt.join("t");
     let d2 = tmpdir.join("d2");
     let canary = d2.join("do_not_delete");
-    check!(mkdir_recursive(&dtt, io::UserRWX));
-    check!(mkdir_recursive(&d2, io::UserRWX));
+    check!(mkdir_recursive(&dtt, io::USER_RWX));
+    check!(mkdir_recursive(&d2, io::USER_RWX));
     check!(check!(File::create(&canary)).write(b"foo"));
     check!(symlink(&d2, &dt.join("d2")));
     check!(rmdir_recursive(&d1));
@@ -334,7 +334,7 @@ test!(fn unicode_path_is_dir() {
 
     let mut dirpath = tmpdir.path().clone();
     dirpath.push(format!("test-가一ー你好"));
-    check!(mkdir(&dirpath, io::UserRWX));
+    check!(mkdir(&dirpath, io::USER_RWX));
     assert!(dirpath.is_dir());
 
     let mut filepath = dirpath;
@@ -351,7 +351,7 @@ test!(fn unicode_path_exists() {
     let tmpdir = tmpdir();
     let unicode = tmpdir.path();
     let unicode = unicode.join(format!("test-각丁ー再见"));
-    check!(mkdir(&unicode, io::UserRWX));
+    check!(mkdir(&unicode, io::USER_RWX));
     assert!(unicode.exists());
     assert!(!Path::new("test/unicode-bogus-path-각丁ー再见").exists());
 })
@@ -501,7 +501,7 @@ test!(fn chmod_works() {
     check!(chmod(&file, io::UserRead));
     assert!(!check!(stat(&file)).perm.contains(io::UserWrite));
 
-    match chmod(&tmpdir.join("foo"), io::UserRWX) {
+    match chmod(&tmpdir.join("foo"), io::USER_RWX) {
         Ok(..) => fail!("wanted a failure"),
         Err(..) => {}
     }

@@ -39,7 +39,6 @@ via `close` and `delete` methods.
        html_favicon_url = "http://www.rust-lang.org/favicon.ico")]
 
 #![feature(macro_rules, unsafe_destructor, phase)]
-#![allow(visible_private_types)]
 
 #[cfg(test)] extern crate debug;
 #[cfg(test)] extern crate native;
