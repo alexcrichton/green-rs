@@ -40,7 +40,6 @@ via `close` and `delete` methods.
 
 #![feature(macro_rules, unsafe_destructor, phase)]
 
-#[cfg(test)] extern crate debug;
 #[cfg(test)] extern crate native;
 extern crate green;
 extern crate libc;
