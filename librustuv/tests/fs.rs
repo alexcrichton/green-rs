@@ -402,7 +402,7 @@ test!(fn copy_file_dst_exists() {
     check!(copy(&input, &output));
 
     assert_eq!(check!(check!(File::open(&output)).read_to_end()),
-               (Vec::from_slice(b"foo")));
+               (b"foo".to_vec()));
 })
 
 test!(fn copy_file_src_dir() {
@@ -443,7 +443,7 @@ test!(fn symlinks_work() {
     }
     assert_eq!(check!(stat(&out)).size, check!(stat(&input)).size);
     assert_eq!(check!(check!(File::open(&out)).read_to_end()),
-               (Vec::from_slice(b"foobar")));
+               (b"foobar".to_vec()));
 })
 
 #[cfg(not(windows))] // apparently windows doesn't like symlinks
@@ -478,7 +478,7 @@ test!(fn links_work() {
     assert_eq!(check!(stat(&out)).size, check!(stat(&input)).size);
     assert_eq!(check!(stat(&out)).size, check!(input.stat()).size);
     assert_eq!(check!(check!(File::open(&out)).read_to_end()),
-               (Vec::from_slice(b"foobar")));
+               (b"foobar".to_vec()));
 
     // can't link to yourself
     match link(&input, &input) {
@@ -538,7 +538,7 @@ test!(fn truncate_works() {
     check!(file.fsync());
     assert_eq!(check!(file.stat()).size, 10);
     assert_eq!(check!(check!(File::open(&path)).read_to_end()),
-               (Vec::from_slice(b"foobar\0\0\0\0")));
+               (b"foobar\0\0\0\0".to_vec()));
 
     // Truncate to a smaller length, don't seek, and then write something.
     // Ensure that the intermediate zeroes are all filled in (we're seeked
@@ -549,7 +549,7 @@ test!(fn truncate_works() {
     check!(file.fsync());
     assert_eq!(check!(file.stat()).size, 9);
     assert_eq!(check!(check!(File::open(&path)).read_to_end()),
-               (Vec::from_slice(b"fo\0\0\0\0wut")));
+               (b"fo\0\0\0\0wut".to_vec()));
     drop(file);
 })
 

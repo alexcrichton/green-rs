@@ -494,7 +494,11 @@ impl Runtime for GreenTask {
                      f: proc():Send) {
         self.put_task(cur_task);
         self.put();
-        ::native::task::spawn_opts(opts, f)
+        {
+            use std::task::Spawner;
+            use native::task::NativeSpawner;
+            NativeSpawner.spawn(opts, f)
+        }
     }
 
     // Local I/O is provided by the scheduler's event loop

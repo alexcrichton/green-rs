@@ -212,7 +212,7 @@ impl Scheduler {
         // cleaning up the memory it uses. As we didn't actually call
         // task.run() on the scheduler task we never get through all
         // the cleanup code it runs.
-        rtdebug!("stopping scheduler {}", stask.sched.get_ref().sched_id());
+        rtdebug!("stopping scheduler {}", stask.sched.as_ref().unwrap().sched_id());
 
         // Should not have any messages
         let message = stask.sched.as_mut().unwrap().message_queue.pop();
@@ -1049,7 +1049,7 @@ mod test {
         let mut task = Local::borrow(None::<Task>);
         match task.maybe_take_runtime::<GreenTask>() {
             Some(green) => {
-                let ret = green.sched.get_ref().sched_id();
+                let ret = green.sched.as_ref().unwrap().sched_id();
                 task.put_runtime(green);
                 return ret;
             }
@@ -1189,8 +1189,8 @@ mod test {
             fn on_appropriate_sched() -> bool {
                 use task::{TypeGreen, TypeSched, HomeSched};
                 let task = GreenTask::convert(Local::take());
-                let sched_id = task.sched.get_ref().sched_id();
-                let run_any = task.sched.get_ref().run_anything;
+                let sched_id = task.sched.as_ref().unwrap().sched_id();
+                let run_any = task.sched.as_ref().unwrap().run_anything;
                 let ret = match task.task_type {
                     TypeGreen(Some(AnySched)) => {
                         run_any
