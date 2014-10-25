@@ -516,6 +516,11 @@ impl Runtime for GreenTask {
          c.current_stack_segment.end() as uint)
     }
 
+    fn stack_guard(&self) -> Option<uint> {
+        Some(self.coroutine.as_ref().unwrap().current_stack_segment.guard()
+                as uint)
+    }
+
     fn can_block(&self) -> bool { false }
 
     fn wrap(self: Box<GreenTask>) -> Box<Any + Send> { self as Box<Any + Send> }

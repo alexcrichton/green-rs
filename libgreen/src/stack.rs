@@ -73,6 +73,10 @@ impl Stack {
         }
     }
 
+    pub fn guard(&self) -> *const uint {
+        (self.start() as uint + page_size()) as *const uint
+    }
+
     /// Point to the low end of the allocated stack
     pub fn start(&self) -> *const uint {
         self.buf.as_ref().map(|m| m.data() as *const uint)
