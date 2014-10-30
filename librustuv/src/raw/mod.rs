@@ -285,7 +285,7 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
             }
         }
         n => {
-            fail!("unknown family {}", n);
+            panic!("unknown family {}", n);
         }
     }
 }

@@ -11,13 +11,13 @@ use rustuv::fs::{File, rmdir, mkdir, readdir, mkdir_recursive, rmdir_recursive,
 macro_rules! check( ($e:expr) => (
     match $e {
         Ok(t) => t,
-        Err(e) => fail!("{} failed with: {}", stringify!($e), e),
+        Err(e) => panic!("{} failed with: {}", stringify!($e), e),
     }
 ) )
 
 macro_rules! error( ($e:expr, $s:expr) => (
     match $e {
-        Ok(..) => fail!("Should have been an error"),
+        Ok(..) => panic!("Should have been an error"),
         Err(ref err) => assert!(err.to_string().as_slice().contains($s.as_slice()),
                                 format!("`{}` did not contain `{}`", err, $s))
     }
@@ -64,7 +64,7 @@ test!(fn file_test_io_smoke_test() {
         let mut read_stream = check!(File::open_mode(filename, Open, Read));
         let mut read_buf = [0, .. 1028];
         let read_str = match check!(read_stream.read(read_buf)) {
-            -1|0 => fail!("shouldn't happen"),
+            -1|0 => panic!("shouldn't happen"),
             n => str::from_utf8(read_buf.slice_to(n)).unwrap().to_string()
         };
         assert_eq!(read_str.as_slice(), message);
@@ -276,7 +276,7 @@ test!(fn file_test_directoryinfo_readdir() {
             check!(check!(File::open(f)).read(mem));
             let read_str = str::from_utf8(mem).unwrap();
             let expected = match n {
-                None|Some("") => fail!("really shouldn't happen.."),
+                None|Some("") => panic!("really shouldn't happen.."),
                 Some(n) => format!("{}{}", prefix, n),
             };
             assert_eq!(expected.as_slice(), read_str);
@@ -361,7 +361,7 @@ test!(fn copy_file_does_not_exist() {
     let to = Path::new("test/other-bogus-path");
 
     match copy(&from, &to) {
-        Ok(..) => fail!(),
+        Ok(..) => panic!(),
         Err(..) => {
             assert!(!from.exists());
             assert!(!to.exists());
@@ -388,7 +388,7 @@ test!(fn copy_file_dst_dir() {
 
     check!(File::create(&out));
     match copy(&out, tmpdir.path()) {
-        Ok(..) => fail!(), Err(..) => {}
+        Ok(..) => panic!(), Err(..) => {}
     }
 })
 
@@ -410,7 +410,7 @@ test!(fn copy_file_src_dir() {
     let out = tmpdir.join("out");
 
     match copy(tmpdir.path(), &out) {
-        Ok(..) => fail!(), Err(..) => {}
+        Ok(..) => panic!(), Err(..) => {}
     }
     assert!(!out.exists());
 })
@@ -457,7 +457,7 @@ test!(fn symlink_noexist() {
 test!(fn readlink_not_symlink() {
     let tmpdir = tmpdir();
     match readlink(tmpdir.path()) {
-        Ok(..) => fail!("wanted a failure"),
+        Ok(..) => panic!("wanted a failure"),
         Err(..) => {}
     }
 })
@@ -482,12 +482,12 @@ test!(fn links_work() {
 
     // can't link to yourself
     match link(&input, &input) {
-        Ok(..) => fail!("wanted a failure"),
+        Ok(..) => panic!("wanted a failure"),
         Err(..) => {}
     }
     // can't link to something that doesn't exist
     match link(&tmpdir.join("foo"), &tmpdir.join("bar")) {
-        Ok(..) => fail!("wanted a failure"),
+        Ok(..) => panic!("wanted a failure"),
         Err(..) => {}
     }
 })
@@ -502,7 +502,7 @@ test!(fn chmod_works() {
     assert!(!check!(stat(&file)).perm.contains(io::UserWrite));
 
     match chmod(&tmpdir.join("foo"), io::USER_RWX) {
-        Ok(..) => fail!("wanted a failure"),
+        Ok(..) => panic!("wanted a failure"),
         Err(..) => {}
     }
 
@@ -557,7 +557,7 @@ test!(fn open_flavors() {
     let tmpdir = tmpdir();
 
     match File::open_mode(&tmpdir.join("a"), io::Open, io::Read) {
-        Ok(..) => fail!(), Err(..) => {}
+        Ok(..) => panic!(), Err(..) => {}
     }
 
     // Perform each one twice to make sure that it succeeds the second time
@@ -592,7 +592,7 @@ test!(fn open_flavors() {
         let mut f = check!(File::open_mode(&tmpdir.join("h"), io::Open,
                                            io::Read));
         match f.write("wut".as_bytes()) {
-            Ok(..) => fail!(), Err(..) => {}
+            Ok(..) => panic!(), Err(..) => {}
         }
     }
     assert!(check!(stat(&tmpdir.join("h"))).size == 3,
@@ -628,7 +628,7 @@ test!(fn utime_noexist() {
     let tmpdir = tmpdir();
 
     match change_file_times(&tmpdir.join("a"), 100, 200) {
-        Ok(..) => fail!(),
+        Ok(..) => panic!(),
         Err(..) => {}
     }
 })

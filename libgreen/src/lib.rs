@@ -565,7 +565,7 @@ impl TaskState {
 impl Drop for SchedPool {
     fn drop(&mut self) {
         if self.threads.len() > 0 {
-            fail!("dropping a M:N scheduler pool that wasn't shut down");
+            panic!("dropping a M:N scheduler pool that wasn't shut down");
         }
     }
 }

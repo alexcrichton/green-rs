@@ -8,7 +8,7 @@ use rustuv::{uvll, Udp};
 test!(fn bind_error() {
     let addr = SocketAddr { ip: Ipv4Addr(0, 0, 0, 0), port: 1 };
     match Udp::bind(addr) {
-        Ok(..) => fail!(),
+        Ok(..) => panic!(),
         Err(e) => assert_eq!(e.code(), uvll::EACCES),
     }
 })
@@ -25,7 +25,7 @@ test!(fn socket_smoke_test_ip4() {
                 rx1.recv();
                 client.send_to([99], server_ip).unwrap()
             }
-            Err(..) => fail!()
+            Err(..) => panic!()
         }
         tx2.send(());
     });
@@ -40,10 +40,10 @@ test!(fn socket_smoke_test_ip4() {
                     assert_eq!(buf[0], 99);
                     assert_eq!(src, client_ip);
                 }
-                Err(..) => fail!()
+                Err(..) => panic!()
             }
         }
-        Err(..) => fail!()
+        Err(..) => panic!()
     }
     rx2.recv();
 })
@@ -59,7 +59,7 @@ test!(fn socket_smoke_test_ip6() {
                 rx.recv();
                 client.send_to([99], server_ip).unwrap()
             }
-            Err(..) => fail!()
+            Err(..) => panic!()
         }
     });
 
@@ -73,10 +73,10 @@ test!(fn socket_smoke_test_ip6() {
                     assert_eq!(buf[0], 99);
                     assert_eq!(src, client_ip);
                 }
-                Err(..) => fail!()
+                Err(..) => panic!()
             }
         }
-        Err(..) => fail!()
+        Err(..) => panic!()
     }
 })
 
@@ -92,7 +92,7 @@ test!(fn stream_smoke_test_ip4() {
                 rx1.recv();
                 client.send_to([99], server_ip).unwrap();
             }
-            Err(..) => fail!()
+            Err(..) => panic!()
         }
         tx2.send(());
     });
@@ -106,10 +106,10 @@ test!(fn stream_smoke_test_ip4() {
                     assert_eq!(nread, 1);
                     assert_eq!(buf[0], 99);
                 }
-                Err(..) => fail!()
+                Err(..) => panic!()
             }
         }
-        Err(..) => fail!()
+        Err(..) => panic!()
     }
     rx2.recv();
 })
@@ -214,7 +214,7 @@ test!(fn udp_clone_two_write() {
         rx.recv();
         match sock2.recv_from(buf) {
             Ok(..) => {}
-            Err(e) => fail!("failed receive: {}", e),
+            Err(e) => panic!("failed receive: {}", e),
         }
         serv_tx.send(());
     });

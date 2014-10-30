@@ -100,7 +100,7 @@ pub fn spawn_opts(opts: TaskOpts, f: proc(): Send) {
         }
         None => {
             Local::put(task);
-            fail!("cannot spawn a green task from a non-green task")
+            panic!("cannot spawn a green task from a non-green task")
         }
     };
 
@@ -556,7 +556,7 @@ mod tests {
         let (tx, rx) = channel::<int>();
         spawn_opts(TaskOpts::new(), proc() {
             let _tx = tx;
-            fail!()
+            panic!()
         });
         assert_eq!(rx.recv_opt(), Err(()));
     }
@@ -577,7 +577,7 @@ mod tests {
         let mut opts = TaskOpts::new();
         let (tx, rx) = channel();
         opts.on_exit = Some(proc(r) tx.send(r));
-        spawn_opts(opts, proc() { fail!() });
+        spawn_opts(opts, proc() { panic!() });
         assert!(rx.recv().is_err());
     }
 

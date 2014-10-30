@@ -24,14 +24,14 @@ fn connect(s: &str, port: u16) -> UvResult<Tcp> {
 
 test!(fn bind_error() {
     match bind("0.0.0.0", 1) {
-        Ok(..) => fail!(),
+        Ok(..) => panic!(),
         Err(e) => assert_eq!(e.code(), uvll::EACCES),
     }
 })
 
 test!(fn connect_error() {
     match connect("0.0.0.0", 1) {
-        Ok(..) => fail!(),
+        Ok(..) => panic!(),
         Err(e) => assert_eq!(e.code(), uvll::ECONNREFUSED),
     }
 })
@@ -190,7 +190,7 @@ test!(fn read_eof_twice_ip4() {
     assert!(nread.is_err());
 
     match stream.uv_read(buf) {
-        Ok(..) => fail!(),
+        Ok(..) => panic!(),
         Err(ref e) => {
             assert!(e.code() == uvll::ENOTCONN || e.code() == uvll::EOF,
                     "unknown kind: {}", e);
@@ -215,7 +215,7 @@ test!(fn read_eof_twice_ip6() {
     assert!(nread.is_err());
 
     match stream.uv_read(buf) {
-        Ok(..) => fail!(),
+        Ok(..) => panic!(),
         Err(ref e) => {
             assert!(e.code() == uvll::ENOTCONN || e.code() == uvll::EOF,
                     "unknown kind: {}", e);
@@ -534,7 +534,7 @@ test!(fn double_bind() {
     let port = addr.port;
     let _listener = bind(ip_str.as_slice(), port).unwrap().listen().unwrap();
     match bind(ip_str.as_slice(), port).unwrap().listen() {
-        Ok(..) => fail!(),
+        Ok(..) => panic!(),
         Err(e) => {
             assert!(e.code() == uvll::ECONNREFUSED ||
                     e.code() == uvll::EADDRINUSE, "unknown error: {}", e);
@@ -710,10 +710,10 @@ test!(fn accept_timeout() {
             match a.accept() {
                 Ok(..) => break,
                 Err(ref e) if e.code() == uvll::ECANCELED => {}
-                Err(e) => fail!("error: {}", e),
+                Err(e) => panic!("error: {}", e),
             }
             ::std::task::deschedule();
-            if i == 1000 { fail!("should have a pending connection") }
+            if i == 1000 { panic!("should have a pending connection") }
         }
     }
 
@@ -803,7 +803,7 @@ test!(fn read_timeouts() {
         while amt < 100 * 128 * 1024 {
             match s.read([0, ..128 * 1024]) {
                 Ok(n) => { amt += n; }
-                Err(e) => fail!("{}", e),
+                Err(e) => panic!("{}", e),
             }
         }
         let _ = rx.recv_opt();

@@ -15,20 +15,20 @@ pub fn smalltest(server: proc(Pipe):Send, client: proc(Pipe):Send) {
     spawn(proc() {
         match Pipe::connect(&path2) {
             Ok(c) => client(c),
-            Err(e) => fail!("failed connect: {}", e),
+            Err(e) => panic!("failed connect: {}", e),
         }
     });
 
     match acceptor.unwrap().accept() {
         Ok(c) => server(c),
-        Err(e) => fail!("failed accept: {}", e),
+        Err(e) => panic!("failed accept: {}", e),
     }
 }
 
 test!(fn bind_error() {
     let path = "path/to/nowhere";
     match PipeListener::bind(&path) {
-        Ok(..) => fail!(),
+        Ok(..) => panic!(),
         Err(e) => {
             assert!(e.code() == uvll::EPERM ||
                     e.code() == uvll::ENOENT ||
@@ -46,7 +46,7 @@ test!(fn connect_error() {
         "path/to/nowhere"
     };
     match Pipe::connect(&path) {
-        Ok(..) => fail!(),
+        Ok(..) => panic!(),
         Err(e) => {
             assert!(e.code() == uvll::ENOENT ||
                     e.code() == uvll::EACCES ||
@@ -103,7 +103,7 @@ test!(fn accept_lots() {
 
     let mut acceptor = match PipeListener::bind(&path1).unwrap().listen() {
         Ok(a) => a,
-        Err(e) => fail!("failed listen: {}", e),
+        Err(e) => panic!("failed listen: {}", e),
     };
 
     spawn(proc() {
@@ -111,7 +111,7 @@ test!(fn accept_lots() {
             let mut stream = Pipe::connect(&path2).unwrap();
             match stream.write([100]) {
                 Ok(..) => {}
-                Err(e) => fail!("failed write: {}", e)
+                Err(e) => panic!("failed write: {}", e)
             }
         }
     });
@@ -121,7 +121,7 @@ test!(fn accept_lots() {
         let mut buf = [0];
         match client.read(buf) {
             Ok(..) => {}
-            Err(e) => fail!("failed read/accept: {}", e),
+            Err(e) => panic!("failed read/accept: {}", e),
         }
         assert_eq!(buf[0], 100);
     }
@@ -262,10 +262,10 @@ test!(fn accept_timeout() {
         match a.accept() {
             Ok(..) => break,
             Err(ref e) if e.code() == uvll::ECANCELED => {}
-            Err(e) => fail!("error: {}", e),
+            Err(e) => panic!("error: {}", e),
         }
         ::std::task::deschedule();
-        if i == 1000 { fail!("should have a pending connection") }
+        if i == 1000 { panic!("should have a pending connection") }
     }
     drop(l);
 
@@ -373,7 +373,7 @@ test!(fn read_timeouts() {
         while amt < 100 * 128 * 1024 {
             match s.read([0, ..128 * 1024]) {
                 Ok(n) => { amt += n; }
-                Err(e) => fail!("{}", e),
+                Err(e) => panic!("{}", e),
             }
         }
         let _ = rx.recv_opt();

@@ -47,7 +47,7 @@ impl Stack {
         let stack = match MemoryMap::new(size, [MapReadable, MapWritable,
                                          MapNonStandardFlags(STACK_FLAGS)]) {
             Ok(map) => map,
-            Err(e) => fail!("mmap for stack of size {} failed: {}", size, e)
+            Err(e) => panic!("mmap for stack of size {} failed: {}", size, e)
         };
 
         // Change the last page to be inaccessible. This is to provide safety;
@@ -55,7 +55,7 @@ impl Stack {
         // page. It isn't guaranteed, but that's why FFI is unsafe. buf.data is
         // guaranteed to be aligned properly.
         if !protect_last_page(&stack) {
-            fail!("Could not memory-protect guard page. stack={}, errno={}",
+            panic!("Could not memory-protect guard page. stack={}, errno={}",
                   stack.data(), errno());
         }
 
