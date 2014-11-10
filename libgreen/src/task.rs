@@ -24,7 +24,6 @@ use std::raw;
 use std::rt::Runtime;
 use std::rt::local::Local;
 use std::rt::mutex::NativeMutex;
-use std::rt::rtio;
 use std::rt::stack;
 use std::rt::task::{Task, BlockedTask, TaskOpts};
 use std::rt;
@@ -67,8 +66,6 @@ pub struct GreenTask {
 
     // See the comments in the scheduler about why this is necessary
     pub nasty_deschedule_lock: NativeMutex,
-
-    io: ::native::io::IoFactory,
 }
 
 pub enum TaskType {
@@ -217,7 +214,6 @@ impl GreenTask {
             handle: None,
             nasty_deschedule_lock: unsafe { NativeMutex::new() },
             task: Some(box Task::new()),
-            io: ::native::io::IoFactory::new(),
         }
     }
 
@@ -499,11 +495,6 @@ impl Runtime for GreenTask {
             use native::task::NativeSpawner;
             NativeSpawner.spawn(opts, f)
         }
-    }
-
-    // Local I/O is provided by the scheduler's event loop
-    fn local_io<'a>(&'a mut self) -> Option<rtio::LocalIo<'a>> {
-        Some(rtio::LocalIo::new(&mut self.io))
     }
 
     fn stack_bounds(&self) -> (uint, uint) {

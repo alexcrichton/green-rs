@@ -16,7 +16,6 @@ use std::mem;
 use std::rt::Runtime;
 use std::rt::local::Local;
 use std::rt::mutex::NativeMutex;
-use std::rt::rtio;
 use std::rt::task::{Task, BlockedTask, TaskOpts};
 
 struct SimpleTask {
@@ -79,7 +78,6 @@ impl Runtime for SimpleTask {
                      _f: proc():Send) {
         panic!()
     }
-    fn local_io<'a>(&'a mut self) -> Option<rtio::LocalIo<'a>> { None }
     fn stack_bounds(&self) -> (uint, uint) { panic!() }
     fn stack_guard(&self) -> Option<uint> { None }
     fn can_block(&self) -> bool { true }
