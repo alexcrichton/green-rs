@@ -1,9 +1,14 @@
 ARCH := $(word 1, $(subst -, ,$(TARGET)))
 
-ifneq ($(findstring i686,$(TARGET)),)
-CFLAGS += -m32
+ifeq (androideabi,$(findstring androideabi,$(TARGET)))
+  CC := $(TARGET)-gcc
+  AR := $(TARGET)-ar
 else
-CFLAGS += -m64
+  ifneq ($(findstring i686,$(TARGET)),)
+    CFLAGS += -m32
+  else
+    CFLAGS += -m64
+  endif
 endif
 
 all:
