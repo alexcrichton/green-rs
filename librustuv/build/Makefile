@@ -1,9 +1,12 @@
 ARCH := $(word 1, $(subst -, ,$(TARGET)))
 
-ifneq ($(findstring i686,$(TARGET)),)
-CFLAGS += -m32 -fPIC
+ifeq (androideabi,$(findstring androideabi,$(TARGET)))
+  CC := $(TARGET)-gcc
+  AR := $(TARGET)-ar
+else ifneq ($(findstring i686,$(TARGET)),)
+  CFLAGS += -m32 -fPIC
 else
-CFLAGS += -m64 -fPIC
+  CFLAGS += -m64 -fPIC
 endif
 
 export PYTHONPATH := $(PYTHONPATH):$(CURDIR)/gyp/pylib

@@ -32,7 +32,7 @@ impl Fs {
     pub fn result(&self) -> UvResult<i64> {
         match unsafe { uvll::rust_uv_get_result_from_fs_req(self.handle) } {
             n if n < 0 => Err(UvError(n as i32)),
-            n => Ok(n)
+            n => Ok(n as i64)
         }
     }
 
