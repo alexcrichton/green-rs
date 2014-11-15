@@ -8,9 +8,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::rt::heap;
-use std::mem;
 use std::io::net::ip;
+use std::mem;
+use std::num::Int;
+use std::rt::heap;
 use libc;
 
 use {uvll, UvResult};
