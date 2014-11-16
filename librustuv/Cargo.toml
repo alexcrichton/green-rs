@@ -8,7 +8,7 @@ build = "make -C build"
 path = "../libgreen"
 
 [dependencies.tls]
-path = "../libtls"
+git = "https://github.com/alexcrichton/tls-rs"
 
 [[test]]
 name = "all"
