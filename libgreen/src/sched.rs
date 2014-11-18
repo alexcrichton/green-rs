@@ -8,6 +8,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+pub use self::SchedMessage::{Wake, Shutdown, NewNeighbor, PinnedTask};
+pub use self::SchedMessage::{TaskFromFriend, RunOnce};
+use self::EffortLevel::{GiveItYourBest, DontTryTooHard};
+
 use std::mem;
 use std::rt::local::Local;
 use std::rt::mutex::NativeMutex;

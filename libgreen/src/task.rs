@@ -33,6 +33,9 @@ use coroutine::Coroutine;
 use sched::{Scheduler, SchedHandle, RunOnce};
 use stack::StackPool;
 
+pub use self::TaskType::{TypeGreen, TypeSched};
+pub use self::Home::{AnySched, HomeSched};
+
 /// The necessary fields needed to keep track of a green task (as opposed to a
 /// 1:1 task).
 pub struct GreenTask {

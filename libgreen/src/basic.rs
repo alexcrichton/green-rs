@@ -70,13 +70,13 @@ impl BasicLoop {
 
     fn message(&mut self, message: Message) {
         match message {
-            RunRemote(i) => {
+            Message::RunRemote(i) => {
                 match self.remotes.iter_mut().find(|& &(id, _)| id == i) {
                     Some(&(_, ref mut f)) => f.call(),
                     None => unreachable!()
                 }
             }
-            RemoveRemote(i) => {
+            Message::RemoveRemote(i) => {
                 match self.remotes.iter().position(|&(id, _)| id == i) {
                     Some(i) => { self.remotes.remove(i).unwrap(); }
                     None => unreachable!()
@@ -167,7 +167,7 @@ impl BasicRemote {
 impl RemoteCallback for BasicRemote {
     fn fire(&mut self) {
         let mut queue = unsafe { self.queue.lock() };
-        queue.push(RunRemote(self.id));
+        queue.push(Message::RunRemote(self.id));
         queue.signal();
     }
 }
@@ -175,7 +175,7 @@ impl RemoteCallback for BasicRemote {
 impl Drop for BasicRemote {
     fn drop(&mut self) {
         let mut queue = unsafe { self.queue.lock() };
-        queue.push(RemoveRemote(self.id));
+        queue.push(Message::RemoveRemote(self.id));
         queue.signal();
     }
 }

@@ -12,6 +12,8 @@ use std::kinds::marker;
 use std::sync::Arc;
 use std::sync::mpsc_queue as mpsc;
 
+pub use self::PopResult::{Inconsistent, Empty, Data};
+
 pub enum PopResult<T> {
     Inconsistent,
     Empty,
