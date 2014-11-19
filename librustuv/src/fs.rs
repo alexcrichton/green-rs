@@ -452,7 +452,7 @@ pub fn copy(from: &Path, to: &Path) -> UvResult<()> {
     let mut buf = [0, ..128 * 1024];
 
     loop {
-        let amt = match reader.read_at(buf, -1) {
+        let amt = match reader.read_at(&mut buf, -1) {
             Ok(n) => n,
             Err(ref e) if e.code() == uvll::EOF => { break }
             Err(e) => return Err(e),

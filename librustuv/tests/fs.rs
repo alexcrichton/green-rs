@@ -63,7 +63,7 @@ test!(fn file_test_io_smoke_test() {
     {
         let mut read_stream = check!(File::open_mode(filename, Open, Read));
         let mut read_buf = [0, .. 1028];
-        let read_str = match check!(read_stream.read(read_buf)) {
+        let read_str = match check!(read_stream.read(&mut read_buf)) {
             -1|0 => panic!("shouldn't happen"),
             n => str::from_utf8(read_buf.slice_to(n)).unwrap().to_string()
         };
@@ -116,7 +116,7 @@ test!(fn file_test_io_non_positional_read() {
         }
     }
     check!(unlink(filename));
-    let read_str = str::from_utf8(read_mem).unwrap();
+    let read_str = str::from_utf8(&read_mem).unwrap();
     assert_eq!(read_str, message);
 })
 
@@ -136,11 +136,11 @@ test!(fn file_test_io_seek_and_tell_smoke_test() {
         let mut read_stream = check!(File::open_mode(filename, Open, Read));
         check!(read_stream.seek(set_cursor as i64, SeekSet));
         tell_pos_pre_read = check!(read_stream.tell());
-        check!(read_stream.read(read_mem));
+        check!(read_stream.read(&mut read_mem));
         tell_pos_post_read = check!(read_stream.tell());
     }
     check!(unlink(filename));
-    let read_str = str::from_utf8(read_mem).unwrap();
+    let read_str = str::from_utf8(&read_mem).unwrap();
     assert_eq!(read_str, message.slice(4, 8));
     assert_eq!(tell_pos_pre_read, set_cursor);
     assert_eq!(tell_pos_post_read, message.len() as u64);
@@ -162,10 +162,10 @@ test!(fn file_test_io_seek_and_write() {
     }
     {
         let mut read_stream = check!(File::open_mode(filename, Open, Read));
-        check!(read_stream.read(read_mem));
+        check!(read_stream.read(&mut read_mem));
     }
     check!(unlink(filename));
-    let read_str = str::from_utf8(read_mem).unwrap();
+    let read_str = str::from_utf8(&read_mem).unwrap();
     assert!(read_str.as_slice() == final_msg.as_slice());
 })
 
@@ -185,16 +185,16 @@ test!(fn file_test_io_seek_shakedown() {
         let mut read_stream = check!(File::open_mode(filename, Open, Read));
 
         check!(read_stream.seek(-4, SeekEnd));
-        check!(read_stream.read(read_mem));
-        assert_eq!(str::from_utf8(read_mem).unwrap(), chunk_three);
+        check!(read_stream.read(&mut read_mem));
+        assert_eq!(str::from_utf8(&read_mem).unwrap(), chunk_three);
 
         check!(read_stream.seek(-9, SeekCur));
-        check!(read_stream.read(read_mem));
-        assert_eq!(str::from_utf8(read_mem).unwrap(), chunk_two);
+        check!(read_stream.read(&mut read_mem));
+        assert_eq!(str::from_utf8(&read_mem).unwrap(), chunk_two);
 
         check!(read_stream.seek(0, SeekSet));
-        check!(read_stream.read(read_mem));
-        assert_eq!(str::from_utf8(read_mem).unwrap(), chunk_one);
+        check!(read_stream.read(&mut read_mem));
+        assert_eq!(str::from_utf8(&read_mem).unwrap(), chunk_one);
     }
     check!(unlink(filename));
 })
@@ -273,8 +273,8 @@ test!(fn file_test_directoryinfo_readdir() {
     for f in files.iter() {
         {
             let n = f.filestem_str();
-            check!(check!(File::open(f)).read(mem));
-            let read_str = str::from_utf8(mem).unwrap();
+            check!(check!(File::open(f)).read(&mut mem));
+            let read_str = str::from_utf8(&mem).unwrap();
             let expected = match n {
                 None|Some("") => panic!("really shouldn't happen.."),
                 Some(n) => format!("{}{}", prefix, n),
@@ -421,12 +421,12 @@ test!(fn copy_file_preserves_perm_bits() {
     let out = tmpdir.join("out.txt");
 
     check!(File::create(&input));
-    check!(chmod(&input, io::UserRead));
+    check!(chmod(&input, io::USER_READ));
     check!(copy(&input, &out));
-    assert!(!check!(out.stat()).perm.intersects(io::UserWrite));
+    assert!(!check!(out.stat()).perm.intersects(io::USER_WRITE));
 
-    check!(chmod(&input, io::UserFile));
-    check!(chmod(&out, io::UserFile));
+    check!(chmod(&input, io::USER_FILE));
+    check!(chmod(&out, io::USER_FILE));
 })
 
 #[cfg(not(windows))] // FIXME(#10264) operation not permitted?
@@ -497,16 +497,16 @@ test!(fn chmod_works() {
     let file = tmpdir.join("in.txt");
 
     check!(File::create(&file));
-    assert!(check!(stat(&file)).perm.contains(io::UserWrite));
-    check!(chmod(&file, io::UserRead));
-    assert!(!check!(stat(&file)).perm.contains(io::UserWrite));
+    assert!(check!(stat(&file)).perm.contains(io::USER_WRITE));
+    check!(chmod(&file, io::USER_READ));
+    assert!(!check!(stat(&file)).perm.contains(io::USER_WRITE));
 
     match chmod(&tmpdir.join("foo"), io::USER_RWX) {
         Ok(..) => panic!("wanted a failure"),
         Err(..) => {}
     }
 
-    check!(chmod(&file, io::UserFile));
+    check!(chmod(&file, io::USER_FILE));
 })
 
 test!(fn sync_doesnt_kill_anything() {
@@ -635,20 +635,20 @@ test!(fn utime_noexist() {
 
 test!(fn binary_file() {
     let mut bytes = [0, ..1024];
-    StdRng::new().ok().unwrap().fill_bytes(bytes);
+    StdRng::new().ok().unwrap().fill_bytes(&mut bytes);
 
     let tmpdir = tmpdir();
 
-    check!(check!(File::create(&tmpdir.join("test"))).write(bytes));
+    check!(check!(File::create(&tmpdir.join("test"))).write(&bytes));
     let actual = check!(check!(File::open(&tmpdir.join("test"))).read_to_end());
-    assert!(actual.as_slice() == bytes);
+    assert!(actual.as_slice() == &bytes);
 })
 
 test!(fn unlink_readonly() {
     let tmpdir = tmpdir();
     let path = tmpdir.join("file");
     check!(File::create(&path));
-    check!(chmod(&path, io::UserRead));
+    check!(chmod(&path, io::USER_READ));
     check!(unlink(&path));
 })
 

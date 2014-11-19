@@ -23,7 +23,7 @@ pub struct AccessTimeout<T> {
 }
 
 struct Inner<T> {
-    state: TimeoutState,
+    state: State,
     timer: Option<raw::Timer>,
     user_unblock: Option<fn(uint) -> Option<BlockedTask>>,
     user_payload: uint,
@@ -31,20 +31,20 @@ struct Inner<T> {
 }
 
 pub struct Guard<'a, T: 'a> {
-    state: &'a mut TimeoutState,
+    state: &'a mut State,
     pub access: access::Guard<'a, T>,
     pub can_timeout: bool,
 }
 
 #[deriving(PartialEq)]
-enum TimeoutState {
+enum State {
     NoTimeout,
-    TimeoutPending(ClientState),
+    TimeoutPending(Client),
     TimedOut,
 }
 
 #[deriving(PartialEq)]
-enum ClientState {
+enum Client {
     NoWaiter,
     AccessPending,
     RequestPending,
@@ -54,7 +54,7 @@ impl<T: Send> AccessTimeout<T> {
     pub fn new(data: T) -> AccessTimeout<T> {
         AccessTimeout {
             inner: box Inner {
-                state: NoTimeout,
+                state: State::NoTimeout,
                 timer: None,
                 user_unblock: None,
                 user_payload: 0,
@@ -74,18 +74,22 @@ impl<T: Send> AccessTimeout<T> {
         // grant.
         let inner = &mut *self.inner;
         match inner.state {
-            NoTimeout => {},
-            TimeoutPending(ref mut client) => *client = AccessPending,
-            TimedOut => return Err(UvError(uvll::ECANCELED))
+            State::NoTimeout => {},
+            State::TimeoutPending(ref mut client) => {
+                *client = Client::AccessPending;
+            }
+            State::TimedOut => return Err(UvError(uvll::ECANCELED))
         }
         let access = inner.access.grant(inner as *mut _ as uint, m);
 
         // After acquiring the grant, we need to flag ourselves as having a
         // pending request so the timeout knows to cancel the request.
         let can_timeout = match inner.state {
-            NoTimeout => false,
-            TimeoutPending(ref mut client) => { *client = RequestPending; true }
-            TimedOut => return Err(UvError(uvll::ECANCELED))
+            State::NoTimeout => false,
+            State::TimeoutPending(ref mut client) => {
+                *client = Client::RequestPending; true
+            }
+            State::TimedOut => return Err(UvError(uvll::ECANCELED))
         };
 
         Ok(Guard {
@@ -97,7 +101,7 @@ impl<T: Send> AccessTimeout<T> {
 
     pub fn timed_out(&self) -> bool {
         match self.inner.state {
-            TimedOut => true,
+            State::TimedOut => true,
             _ => false,
         }
     }
@@ -115,7 +119,7 @@ impl<T: Send> AccessTimeout<T> {
                        uv_loop: raw::Loop,
                        cb: fn(uint) -> Option<BlockedTask>,
                        data: uint) {
-        self.inner.state = NoTimeout;
+        self.inner.state = State::NoTimeout;
         let ms = match dur {
             Some(dur) if dur.num_milliseconds() < 0 => 0,
             Some(dur) => dur.num_milliseconds() as u64,
@@ -137,7 +141,7 @@ impl<T: Send> AccessTimeout<T> {
         // the new timeout.
         self.inner.user_unblock = Some(cb);
         self.inner.user_payload = data;
-        self.inner.state = TimeoutPending(NoWaiter);
+        self.inner.state = State::TimeoutPending(Client::NoWaiter);
         let timer = self.inner.timer.as_mut().unwrap();
         timer.stop().unwrap();
         timer.start(ms, 0, timer_cb::<T>).unwrap();
@@ -148,16 +152,16 @@ impl<T: Send> AccessTimeout<T> {
             unsafe {
                 let timer: raw::Timer = Handle::from_raw(timer);
                 let inner: &mut Inner<T> = mem::transmute(timer.get_data());
-                match mem::replace(&mut inner.state, TimedOut) {
-                    TimedOut | NoTimeout => unreachable!(),
-                    TimeoutPending(NoWaiter) => {}
-                    TimeoutPending(AccessPending) => {
+                match mem::replace(&mut inner.state, State::TimedOut) {
+                    State::TimedOut | State::NoTimeout => unreachable!(),
+                    State::TimeoutPending(Client::NoWaiter) => {}
+                    State::TimeoutPending(Client::AccessPending) => {
                         match inner.access.dequeue(inner as *mut _ as uint) {
                             Some(task) => task.reawaken(),
                             None => unreachable!(),
                         }
                     }
-                    TimeoutPending(RequestPending) => {
+                    State::TimeoutPending(Client::RequestPending) => {
                         match (inner.user_unblock.unwrap())(inner.user_payload) {
                             Some(task) => task.reawaken(),
                             None => unreachable!(),
@@ -174,7 +178,7 @@ impl<T: Send> Clone for AccessTimeout<T> {
         AccessTimeout {
             inner: box Inner {
                 access: self.inner.access.clone(),
-                state: NoTimeout,
+                state: State::NoTimeout,
                 timer: None,
                 user_unblock: None,
                 user_payload: 0,
@@ -187,12 +191,12 @@ impl<T: Send> Clone for AccessTimeout<T> {
 impl<'a, T> Drop for Guard<'a, T> {
     fn drop(&mut self) {
         match *self.state {
-            TimeoutPending(NoWaiter) | TimeoutPending(AccessPending) =>
-                unreachable!(),
+            State::TimeoutPending(Client::NoWaiter) |
+            State::TimeoutPending(Client::AccessPending) => unreachable!(),
 
-            NoTimeout | TimedOut => {}
-            TimeoutPending(RequestPending) => {
-                *self.state = TimeoutPending(NoWaiter);
+            State::NoTimeout | State::TimedOut => {}
+            State::TimeoutPending(Client::RequestPending) => {
+                *self.state = State::TimeoutPending(Client::NoWaiter);
             }
         }
     }

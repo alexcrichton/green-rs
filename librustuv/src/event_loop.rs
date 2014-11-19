@@ -18,7 +18,7 @@ use raw::{mod, Loop, Handle};
 use queue::QueuePool;
 use homing::HomeHandle;
 
-scoped_tls!(static local_loop: Cell<(*mut EventLoop, bool)>)
+scoped_tls!(static LOCAL_LOOP: Cell<(*mut EventLoop, bool)>)
 
 pub struct EventLoop {
     uv_loop: Loop,
@@ -47,16 +47,14 @@ impl EventLoop {
     /// If there is no local event loop, or the local event loop is already
     /// borrowed, then an error is returned.
     pub fn borrow() -> UvResult<BorrowedEventLoop> {
-        let local = unsafe {
-            local_loop.with(|local| {
-                local.and_then(|c| {
-                    match c.get() {
-                        (_, true) => None,
-                        (p, false) => { c.set((p, true)); Some(p) }
-                    }
-                })
+        let local = LOCAL_LOOP.with(|local| {
+            local.and_then(|c| {
+                match c.get() {
+                    (_, true) => None,
+                    (p, false) => { c.set((p, true)); Some(p) }
+                }
             })
-        };
+        });
         match local {
             Some(eloop) => Ok(BorrowedEventLoop {
                 local: eloop,
@@ -69,7 +67,7 @@ impl EventLoop {
 
     /// Borrow an unsafe pointer to the local event loop
     pub unsafe fn borrow_raw() -> UvResult<*mut EventLoop> {
-        let local = local_loop.with(|local| local.map(|c| c.get().val0()));
+        let local = LOCAL_LOOP.with(|local| local.map(|c| c.get().val0()));
         match local {
             Some(eloop) => Ok(eloop),
             None => Err(UvError(uvll::UNKNOWN))
@@ -98,11 +96,9 @@ impl EventLoop {
 impl green::EventLoop for EventLoop {
     fn run(&mut self) {
         let tls = Cell::new((self as *mut _, false));
-        unsafe {
-            local_loop.set(&tls, || {
-                self.uv_loop.run(uvll::RUN_DEFAULT).unwrap();
-            });
-        }
+        LOCAL_LOOP.set(&tls, || {
+            self.uv_loop.run(uvll::RUN_DEFAULT).unwrap();
+        });
     }
 
     fn callback(&mut self, f: proc()) {
@@ -178,8 +174,6 @@ impl DerefMut<EventLoop> for BorrowedEventLoop {
 #[unsafe_destructor]
 impl Drop for BorrowedEventLoop {
     fn drop(&mut self) {
-        unsafe {
-            local_loop.with(|l| l.unwrap().set((self.local, false)))
-        }
+        LOCAL_LOOP.with(|l| l.unwrap().set((self.local, false)))
     }
 }

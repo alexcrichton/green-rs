@@ -59,18 +59,18 @@ test!(fn connect_error() {
 test!(fn smoke() {
     smalltest(proc(mut server) {
         let mut buf = [0];
-        server.read(buf).unwrap();
+        server.read(&mut buf).unwrap();
         assert!(buf[0] == 99);
     }, proc(mut client) {
-        client.write([99]).unwrap();
+        client.write(&[99]).unwrap();
     })
 })
 
 test!(fn read_eof() {
     smalltest(proc(mut server) {
         let mut buf = [0];
-        assert!(server.read(buf).is_err());
-        assert!(server.read(buf).is_err());
+        assert!(server.read(&mut buf).is_err());
+        assert!(server.read(&mut buf).is_err());
     }, proc(_client) {
         // drop the client
     })
@@ -80,7 +80,7 @@ test!(fn write_begone() {
     smalltest(proc(mut server) {
         let buf = [0];
         loop {
-            match server.uv_write(buf) {
+            match server.uv_write(&buf) {
                 Ok(..) => {}
                 Err(e) => {
                     assert!(e.code() == uvll::EPIPE ||
@@ -109,7 +109,7 @@ test!(fn accept_lots() {
     spawn(proc() {
         for _ in range(0u, times) {
             let mut stream = Pipe::connect(&path2).unwrap();
-            match stream.write([100]) {
+            match stream.write(&[100]) {
                 Ok(..) => {}
                 Err(e) => panic!("failed write: {}", e)
             }
@@ -119,7 +119,7 @@ test!(fn accept_lots() {
     for _ in range(0, times) {
         let mut client = acceptor.accept().unwrap();
         let mut buf = [0];
-        match client.read(buf) {
+        match client.read(&mut buf) {
             Ok(..) => {}
             Err(e) => panic!("failed read/accept: {}", e),
         }
@@ -141,9 +141,9 @@ test!(fn unix_clone_smoke() {
     spawn(proc() {
         let mut s = Pipe::connect(&addr).unwrap();
         let mut buf = [0, 0];
-        assert_eq!(s.read(buf), Ok(1));
+        assert_eq!(s.read(&mut buf), Ok(1));
         assert_eq!(buf[0], 1);
-        s.write([2]).unwrap();
+        s.write(&[2]).unwrap();
     });
 
     let mut s1 = acceptor.unwrap().accept().unwrap();
@@ -154,12 +154,12 @@ test!(fn unix_clone_smoke() {
     spawn(proc() {
         let mut s2 = s2;
         rx1.recv();
-        s2.write([1]).unwrap();
+        s2.write(&[1]).unwrap();
         tx2.send(());
     });
     tx1.send(());
     let mut buf = [0, 0];
-    assert_eq!(s1.read(buf), Ok(1));
+    assert_eq!(s1.read(&mut buf), Ok(1));
     rx2.recv();
 })
 
@@ -171,9 +171,9 @@ test!(fn unix_clone_two_read() {
 
     spawn(proc() {
         let mut s = Pipe::connect(&addr).unwrap();
-        s.write([1]).unwrap();
+        s.write(&[1]).unwrap();
         rx.recv();
-        s.write([2]).unwrap();
+        s.write(&[2]).unwrap();
         rx.recv();
     });
 
@@ -184,12 +184,12 @@ test!(fn unix_clone_two_read() {
     spawn(proc() {
         let mut s2 = s2;
         let mut buf = [0, 0];
-        s2.read(buf).unwrap();
+        s2.read(&mut buf).unwrap();
         tx2.send(());
         done.send(());
     });
     let mut buf = [0, 0];
-    s1.read(buf).unwrap();
+    s1.read(&mut buf).unwrap();
     tx1.send(());
 
     rx.recv();
@@ -202,8 +202,8 @@ test!(fn unix_clone_two_write() {
     spawn(proc() {
         let mut s = Pipe::connect(&addr).unwrap();
         let mut buf = [0, 1];
-        s.read(buf).unwrap();
-        s.read(buf).unwrap();
+        s.read(&mut buf).unwrap();
+        s.read(&mut buf).unwrap();
     });
 
     let mut s1 = acceptor.accept().unwrap();
@@ -212,10 +212,10 @@ test!(fn unix_clone_two_write() {
     let (tx, rx) = channel();
     spawn(proc() {
         let mut s2 = s2;
-        s2.write([1]).unwrap();
+        s2.write(&[1]).unwrap();
         tx.send(());
     });
-    s1.write([2]).unwrap();
+    s1.write(&[2]).unwrap();
 
     rx.recv();
 })
@@ -317,18 +317,18 @@ test!(fn close_readwrite_smoke() {
 
     // closing should prevent reads/writes
     s.close_write().unwrap();
-    assert!(s.write([0]).is_err());
+    assert!(s.write(&[0]).is_err());
     s.close_read().unwrap();
-    assert!(s.read(b).is_err());
+    assert!(s.read(&mut b).is_err());
 
     // closing should affect previous handles
-    assert!(s2.write([0]).is_err());
-    assert!(s2.read(b).is_err());
+    assert!(s2.write(&[0]).is_err());
+    assert!(s2.read(&mut b).is_err());
 
     // closing should affect new handles
     let mut s3 = s.clone();
-    assert!(s3.write([0]).is_err());
-    assert!(s3.read(b).is_err());
+    assert!(s3.write(&[0]).is_err());
+    assert!(s3.read(&mut b).is_err());
 
     // make sure these don't die
     let _ = s2.close_read();
@@ -352,7 +352,7 @@ test!(fn close_read_wakes_up() {
     let (tx, rx) = channel();
     spawn(proc() {
         let mut s2 = s2;
-        assert!(s2.read([0]).is_err());
+        assert!(s2.read(&mut [0]).is_err());
         tx.send(());
     });
     // this should wake up the child task
@@ -371,7 +371,7 @@ test!(fn read_timeouts() {
         rx.recv();
         let mut amt = 0;
         while amt < 100 * 128 * 1024 {
-            match s.read([0, ..128 * 1024]) {
+            match s.read(&mut [0, ..128 * 1024]) {
                 Ok(n) => { amt += n; }
                 Err(e) => panic!("{}", e),
             }
@@ -381,12 +381,12 @@ test!(fn read_timeouts() {
 
     let mut s = a.accept().unwrap();
     s.set_read_timeout(Some(Duration::milliseconds(20)));
-    assert_eq!(s.uv_read([0]).err().unwrap().code(), uvll::ECANCELED);
-    assert_eq!(s.uv_read([0]).err().unwrap().code(), uvll::ECANCELED);
+    assert_eq!(s.uv_read(&mut [0]).err().unwrap().code(), uvll::ECANCELED);
+    assert_eq!(s.uv_read(&mut [0]).err().unwrap().code(), uvll::ECANCELED);
 
     tx.send(());
     for _ in range(0u, 100) {
-        assert!(s.write([0, ..128 * 1024]).is_ok());
+        assert!(s.write(&[0, ..128 * 1024]).is_ok());
     }
 })
 
@@ -397,7 +397,7 @@ test!(fn timeout_concurrent_read() {
     spawn(proc() {
         let mut s = Pipe::connect(&addr).unwrap();
         rx.recv();
-        assert!(s.write([0]).is_ok());
+        assert!(s.write(&[0]).is_ok());
         let _ = rx.recv_opt();
     });
 
@@ -406,12 +406,12 @@ test!(fn timeout_concurrent_read() {
     let (tx2, rx2) = channel();
     spawn(proc() {
         let mut s2 = s2;
-        assert!(s2.read([0]).is_ok());
+        assert!(s2.read(&mut [0]).is_ok());
         tx2.send(());
     });
 
     s.set_read_timeout(Some(Duration::milliseconds(20)));
-    assert_eq!(s.uv_read([0]).err().unwrap().code(), uvll::ECANCELED);
+    assert_eq!(s.uv_read(&mut [0]).err().unwrap().code(), uvll::ECANCELED);
     tx.send(());
 
     rx2.recv();

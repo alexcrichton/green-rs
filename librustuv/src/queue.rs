@@ -63,16 +63,16 @@ extern fn async_cb(handle: *mut uvll::uv_async_t) {
     // entire queue in a loop.
     loop {
         match state.queue.pop() {
-            mpsc::Data(Task(task)) => {
+            mpsc::Data(Message::Task(task)) => {
                 let _ = task.wake().map(|t| t.reawaken());
             }
-            mpsc::Data(Increment) => {
+            mpsc::Data(Message::Increment) => {
                 if pool.refcnt == 0 {
                     async.uv_ref();
                 }
                 pool.refcnt += 1;
             },
-            mpsc::Data(Decrement) => {
+            mpsc::Data(Message::Decrement) => {
                 pool.refcnt -= 1;
                 if pool.refcnt == 0 {
                     async.uv_unref();
@@ -133,7 +133,7 @@ impl QueuePool {
 
 impl Queue {
     pub fn push(&self, task: BlockedTask) {
-        self.state.queue.push(Task(task));
+        self.state.queue.push(Message::Task(task));
         self.state.handle.send();
     }
 }
@@ -145,7 +145,7 @@ impl Clone for Queue {
         // that the count is at least one (because we have a queue right here),
         // and if the queue is dropped later on it'll see the increment for the
         // decrement anyway.
-        self.state.queue.push(Increment);
+        self.state.queue.push(Message::Increment);
         Queue { state: self.state.clone() }
     }
 }
@@ -156,7 +156,7 @@ impl Drop for Queue {
         // that is acquired only on a drop.
         unsafe {
             let _l = self.state.lock.lock();
-            self.state.queue.push(Decrement);
+            self.state.queue.push(Message::Decrement);
             self.state.handle.send();
         }
     }

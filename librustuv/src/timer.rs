@@ -25,11 +25,11 @@ pub struct Timer {
 }
 
 struct Data {
-    action: Option<NextAction>,
+    action: Option<Action>,
     id: uint, // see comments in timer_cb
 }
 
-enum NextAction {
+enum Action {
     WakeTask(BlockedTask),
     CallOnce(Box<Callback + Send>),
     CallMany(Box<Callback + Send>, uint),
@@ -86,7 +86,7 @@ impl Timer {
         assert!(data.action.is_none());
         data.id += 1;
         ::block(handle.uv_loop(), |task| {
-            data.action = Some(WakeTask(task));
+            data.action = Some(Action::WakeTask(task));
             handle.stop().unwrap();
             handle.start(ms as u64, 0, timer_cb).unwrap();
         });
@@ -107,7 +107,7 @@ impl Timer {
             data.id += 1;
             handle.stop().unwrap();
             handle.start(ms as u64, 0, timer_cb).unwrap();
-            mem::replace(&mut data.action, Some(CallOnce(cb)))
+            mem::replace(&mut data.action, Some(Action::CallOnce(cb)))
         };
     }
 
@@ -126,7 +126,7 @@ impl Timer {
             data.id += 1;
             handle.stop().unwrap();
             handle.start(ms as u64, ms as u64, timer_cb).unwrap();
-            mem::replace(&mut data.action, Some(CallMany(cb, data.id)))
+            mem::replace(&mut data.action, Some(Action::CallMany(cb, data.id)))
         };
     }
 
@@ -147,9 +147,9 @@ extern fn timer_cb(timer: *mut uvll::uv_timer_t) {
     let timer: raw::Timer = unsafe { Handle::from_raw(timer) };
     let data: &mut Data = unsafe { mem::transmute(timer.get_data()) };
     match data.action.take().unwrap() {
-        WakeTask(task) => task.reawaken(),
-        CallOnce(mut cb) => cb.call(),
-        CallMany(mut cb, id) => {
+        Action::WakeTask(task) => task.reawaken(),
+        Action::CallOnce(mut cb) => cb.call(),
+        Action::CallMany(mut cb, id) => {
             cb.call();
 
             // Note that the above operation could have performed some form
@@ -162,7 +162,7 @@ extern fn timer_cb(timer: *mut uvll::uv_timer_t) {
             // running on the same thread, so there's no need for any
             // synchronization here.
             if data.id == id {
-                data.action = Some(CallMany(cb, id));
+                data.action = Some(Action::CallMany(cb, id));
             }
         }
     }
@@ -182,8 +182,8 @@ impl Drop for Timer {
         //
         // Furthermore, we can't actually free the extraneous `Data` here
         // because the `timer_cb` may actually be somewhere up on the stack in a
-        // `CallMany` which might use the data. To mitigate this, we bump the
-        // `id` (so the `CallMany` doesn't re-store its callback) and then
+        // `Action::CallMany` which might use the data. To mitigate this, we bump the
+        // `id` (so the `Action::CallMany` doesn't re-store its callback) and then
         // schedule a custom close callback to free both the timer and the data.
         let _action = unsafe {
             let _m = self.fire_homing_missile();

@@ -40,6 +40,18 @@ pub use self::errors::{EACCES, ECONNREFUSED, ECONNRESET, EPIPE, ECONNABORTED,
                        ECANCELED, EBADF, ENOTCONN, ENOENT, EADDRNOTAVAIL,
                        EADDRINUSE, EPERM, EINVAL};
 
+pub use self::uv_membership::{UV_JOIN_GROUP, UV_LEAVE_GROUP};
+pub use self::uv_handle_type::{UV_UNKNOWN_HANDLE, UV_ASYNC, UV_CHECK};
+pub use self::uv_handle_type::{UV_FS_EVENT, UV_FS_POLL, UV_HANDLE, UV_IDLE};
+pub use self::uv_handle_type::{UV_NAMED_PIPE, UV_POLL, UV_PREPARE, UV_PROCESS};
+pub use self::uv_handle_type::{UV_STREAM, UV_TCP, UV_TIMER, UV_TTY, UV_UDP};
+pub use self::uv_handle_type::{UV_SIGNAL, UV_FILE, UV_HANDLE_TYPE_MAX};
+pub use self::uv_req_type::{UV_UNKNOWN_REQ, UV_REQ, UV_CONNECT, UV_WRITE};
+pub use self::uv_req_type::{UV_SHUTDOWN, UV_UDP_SEND, UV_FS, UV_WORK};
+pub use self::uv_req_type::{UV_GETADDRINFO, UV_GETNAMEINFO, UV_REQ_TYPE_MAX};
+pub use self::uv_run_mode::{RUN_DEFAULT, RUN_ONCE, RUN_NOWAIT};
+pub use self::uv_poll_event::{UV_READABLE, UV_WRITABLE};
+
 pub static OK: c_int = 0;
 pub static EOF: c_int = -4095;
 pub static UNKNOWN: c_int = -4094;

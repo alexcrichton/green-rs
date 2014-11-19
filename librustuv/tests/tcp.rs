@@ -45,12 +45,12 @@ test!(fn listen_ip4_localhost() {
 
     spawn(proc() {
         let mut stream = connect("127.0.0.1", port).unwrap();
-        stream.write([144]).unwrap();
+        stream.write(&[144]).unwrap();
     });
 
     let mut stream = acceptor.accept().unwrap();
     let mut buf = [0];
-    stream.read(buf).unwrap();
+    stream.read(&mut buf).unwrap();
     assert!(buf[0] == 144);
 })
 
@@ -62,12 +62,12 @@ test!(fn connect_localhost() {
 
     spawn(proc() {
         let mut stream = connect("127.0.0.1", addr.port).unwrap();
-        stream.write([64]).unwrap();
+        stream.write(&[64]).unwrap();
     });
 
     let mut stream = acceptor.accept().unwrap();
     let mut buf = [0];
-    stream.read(buf).unwrap();
+    stream.read(&mut buf).unwrap();
     assert!(buf[0] == 64);
 })
 
@@ -79,12 +79,12 @@ test!(fn connect_ip4_loopback() {
 
     spawn(proc() {
         let mut stream = connect("127.0.0.1", addr.port).unwrap();
-        stream.write([44]).unwrap();
+        stream.write(&[44]).unwrap();
     });
 
     let mut stream = acceptor.accept().unwrap();
     let mut buf = [0];
-    stream.read(buf).unwrap();
+    stream.read(&mut buf).unwrap();
     assert!(buf[0] == 44);
 })
 
@@ -96,12 +96,12 @@ test!(fn connect_ip6_loopback() {
 
     spawn(proc() {
         let mut stream = connect("::1", addr.port).unwrap();
-        stream.write([66]).unwrap();
+        stream.write(&[66]).unwrap();
     });
 
     let mut stream = acceptor.accept().unwrap();
     let mut buf = [0];
-    stream.read(buf).unwrap();
+    stream.read(&mut buf).unwrap();
     assert!(buf[0] == 66);
 })
 
@@ -113,12 +113,12 @@ test!(fn smoke_test_ip4() {
 
     spawn(proc() {
         let mut stream = connect(ip_str.as_slice(), port).unwrap();
-        stream.write([99]).unwrap();
+        stream.write(&[99]).unwrap();
     });
 
     let mut stream = acceptor.accept().unwrap();
     let mut buf = [0];
-    stream.read(buf).unwrap();
+    stream.read(&mut buf).unwrap();
     assert!(buf[0] == 99);
 })
 
@@ -130,12 +130,12 @@ test!(fn smoke_test_ip6() {
 
     spawn(proc() {
         let mut stream = connect(ip_str.as_slice(), port).unwrap();
-        stream.write([99]).unwrap();
+        stream.write(&[99]).unwrap();
     });
 
     let mut stream = acceptor.accept().unwrap();
     let mut buf = [0];
-    stream.read(buf).unwrap();
+    stream.read(&mut buf).unwrap();
     assert!(buf[0] == 99);
 })
 
@@ -152,7 +152,7 @@ test!(fn read_eof_ip4() {
 
     let mut stream = acceptor.accept().unwrap();
     let mut buf = [0];
-    let nread = stream.read(buf);
+    let nread = stream.read(&mut buf);
     assert!(nread.is_err());
 })
 
@@ -169,7 +169,7 @@ test!(fn read_eof_ip6() {
 
     let mut stream = acceptor.accept().unwrap();
     let mut buf = [0];
-    let nread = stream.read(buf);
+    let nread = stream.read(&mut buf);
     assert!(nread.is_err());
 })
 
@@ -186,10 +186,10 @@ test!(fn read_eof_twice_ip4() {
 
     let mut stream = acceptor.accept().unwrap();
     let mut buf = [0];
-    let nread = stream.read(buf);
+    let nread = stream.read(&mut buf);
     assert!(nread.is_err());
 
-    match stream.uv_read(buf) {
+    match stream.uv_read(&mut buf) {
         Ok(..) => panic!(),
         Err(ref e) => {
             assert!(e.code() == uvll::ENOTCONN || e.code() == uvll::EOF,
@@ -211,10 +211,10 @@ test!(fn read_eof_twice_ip6() {
 
     let mut stream = acceptor.accept().unwrap();
     let mut buf = [0];
-    let nread = stream.read(buf);
+    let nread = stream.read(&mut buf);
     assert!(nread.is_err());
 
-    match stream.uv_read(buf) {
+    match stream.uv_read(&mut buf) {
         Ok(..) => panic!(),
         Err(ref e) => {
             assert!(e.code() == uvll::ENOTCONN || e.code() == uvll::EOF,
@@ -237,7 +237,7 @@ test!(fn write_close_ip4() {
     let mut stream = acceptor.accept().unwrap();
     let buf = [0];
     loop {
-        match stream.uv_write(buf) {
+        match stream.uv_write(&buf) {
             Ok(..) => {}
             Err(e) => {
                 assert!(e.code() == uvll::ECONNRESET ||
@@ -264,7 +264,7 @@ test!(fn write_close_ip6() {
     let mut stream = acceptor.accept().unwrap();
     let buf = [0];
     loop {
-        match stream.uv_write(buf) {
+        match stream.uv_write(&buf) {
             Ok(..) => {}
             Err(e) => {
                 assert!(e.code() == uvll::ECONNRESET ||
@@ -287,13 +287,13 @@ test!(fn multiple_connect_serial_ip4() {
     spawn(proc() {
         for _ in range(0, max) {
             let mut stream = connect(ip_str.as_slice(), port).unwrap();
-            stream.write([99]).unwrap();
+            stream.write(&[99]).unwrap();
         }
     });
 
     for stream in acceptor.incoming().take(max) {
         let mut buf = [0];
-        stream.unwrap().read(buf).unwrap();
+        stream.unwrap().read(&mut buf).unwrap();
         assert_eq!(buf[0], 99);
     }
 })
@@ -308,13 +308,13 @@ test!(fn multiple_connect_serial_ip6() {
     spawn(proc() {
         for _ in range(0, max) {
             let mut stream = connect(ip_str.as_slice(), port).unwrap();
-            stream.write([99]).unwrap();
+            stream.write(&[99]).unwrap();
         }
     });
 
     for stream in acceptor.incoming().take(max) {
         let mut buf = [0];
-        stream.unwrap().read(buf).unwrap();
+        stream.unwrap().read(&mut buf).unwrap();
         assert_eq!(buf[0], 99);
     }
 })
@@ -332,7 +332,7 @@ test!(fn multiple_connect_interleaved_greedy_schedule_ip4() {
             // Start another task to handle the connection
             spawn(proc() {
                 let mut buf = [0];
-                stream.unwrap().read(buf).unwrap();
+                stream.unwrap().read(&mut buf).unwrap();
                 assert!(buf[0] == i as u8);
             });
         }
@@ -349,7 +349,7 @@ test!(fn multiple_connect_interleaved_greedy_schedule_ip4() {
             let mut stream = connect(ip_str.as_slice(), port).unwrap();
             // Connect again before writing
             myconnect(i + 1, addr);
-            stream.write([i as u8]).unwrap();
+            stream.write(&[i as u8]).unwrap();
         });
     }
 })
@@ -367,7 +367,7 @@ test!(fn multiple_connect_interleaved_greedy_schedule_ip6() {
             // Start another task to handle the connection
             spawn(proc() {
                 let mut buf = [0];
-                stream.unwrap().read(buf).unwrap();
+                stream.unwrap().read(&mut buf).unwrap();
                 assert!(buf[0] == i as u8);
             });
         }
@@ -384,7 +384,7 @@ test!(fn multiple_connect_interleaved_greedy_schedule_ip6() {
             let mut stream = connect(ip_str.as_slice(), port).unwrap();
             // Connect again before writing
             myconnect(i + 1, addr);
-            stream.write([i as u8]).unwrap();
+            stream.write(&[i as u8]).unwrap();
         });
     }
 })
@@ -402,7 +402,7 @@ test!(fn multiple_connect_interleaved_lazy_schedule_ip4() {
             // Start another task to handle the connection
             spawn(proc() {
                 let mut buf = [0];
-                stream.unwrap().read(buf).unwrap();
+                stream.unwrap().read(&mut buf).unwrap();
                 assert!(buf[0] == 99);
             });
         }
@@ -419,7 +419,7 @@ test!(fn multiple_connect_interleaved_lazy_schedule_ip4() {
             let mut stream = connect(ip_str.as_slice(), port).unwrap();
             // Connect again before writing
             myconnect(i + 1, addr);
-            stream.write([99]).unwrap();
+            stream.write(&[99]).unwrap();
         });
     }
 })
@@ -437,7 +437,7 @@ test!(fn multiple_connect_interleaved_lazy_schedule_ip6() {
             // Start another task to handle the connection
             spawn(proc() {
                 let mut buf = [0];
-                stream.unwrap().read(buf).unwrap();
+                stream.unwrap().read(&mut buf).unwrap();
                 assert!(buf[0] == 99);
             });
         }
@@ -454,7 +454,7 @@ test!(fn multiple_connect_interleaved_lazy_schedule_ip6() {
             let mut stream = connect(ip_str.as_slice(), port).unwrap();
             // Connect again before writing
             myconnect(i + 1, addr);
-            stream.write([99]).unwrap();
+            stream.write(&[99]).unwrap();
         });
     }
 })
@@ -513,9 +513,9 @@ test!(fn partial_read() {
         let mut srv = bind(ip_str.as_slice(), port).unwrap().listen().unwrap();
         tx.send(());
         let mut cl = srv.accept().unwrap();
-        cl.write([10]).unwrap();
+        cl.write(&[10]).unwrap();
         let mut b = [0];
-        cl.read(b).unwrap();
+        cl.read(&mut b).unwrap();
         tx.send(());
     });
 
@@ -523,8 +523,8 @@ test!(fn partial_read() {
     let ip_str = addr.ip.to_string();
     let mut c = connect(ip_str.as_slice(), port).unwrap();
     let mut b = [0, ..10];
-    assert_eq!(c.read(b), Ok(1));
-    c.write([1]).unwrap();
+    assert_eq!(c.read(&mut b), Ok(1));
+    c.write(&[1]).unwrap();
     rx.recv();
 })
 
@@ -578,9 +578,9 @@ test!(fn tcp_clone_smoke() {
     spawn(proc() {
         let mut s = connect(ip_str.as_slice(), port).unwrap();
         let mut buf = [0, 0];
-        assert_eq!(s.read(buf), Ok(1));
+        assert_eq!(s.read(&mut buf), Ok(1));
         assert_eq!(buf[0], 1);
-        s.write([2]).unwrap();
+        s.write(&[2]).unwrap();
     });
 
     let mut s1 = acceptor.accept().unwrap();
@@ -591,12 +591,12 @@ test!(fn tcp_clone_smoke() {
     spawn(proc() {
         let mut s2 = s2;
         rx1.recv();
-        s2.write([1]).unwrap();
+        s2.write(&[1]).unwrap();
         tx2.send(());
     });
     tx1.send(());
     let mut buf = [0, 0];
-    assert_eq!(s1.read(buf), Ok(1));
+    assert_eq!(s1.read(&mut buf), Ok(1));
     rx2.recv();
 })
 
@@ -610,9 +610,9 @@ test!(fn tcp_clone_two_read() {
 
     spawn(proc() {
         let mut s = connect(ip_str.as_slice(), port).unwrap();
-        s.write([1]).unwrap();
+        s.write(&[1]).unwrap();
         rx.recv();
-        s.write([2]).unwrap();
+        s.write(&[2]).unwrap();
         rx.recv();
     });
 
@@ -623,12 +623,12 @@ test!(fn tcp_clone_two_read() {
     spawn(proc() {
         let mut s2 = s2;
         let mut buf = [0, 0];
-        s2.read(buf).unwrap();
+        s2.read(&mut buf).unwrap();
         tx2.send(());
         done.send(());
     });
     let mut buf = [0, 0];
-    s1.read(buf).unwrap();
+    s1.read(&mut buf).unwrap();
     tx1.send(());
 
     rx.recv();
@@ -643,8 +643,8 @@ test!(fn tcp_clone_two_write() {
     spawn(proc() {
         let mut s = connect(ip_str.as_slice(), port).unwrap();
         let mut buf = [0, 1];
-        s.read(buf).unwrap();
-        s.read(buf).unwrap();
+        s.read(&mut buf).unwrap();
+        s.read(&mut buf).unwrap();
     });
 
     let mut s1 = acceptor.accept().unwrap();
@@ -653,10 +653,10 @@ test!(fn tcp_clone_two_write() {
     let (done, rx) = channel();
     spawn(proc() {
         let mut s2 = s2;
-        s2.write([1]).unwrap();
+        s2.write(&[1]).unwrap();
         done.send(());
     });
-    s1.write([2]).unwrap();
+    s1.write(&[2]).unwrap();
 
     rx.recv();
 })
@@ -670,12 +670,12 @@ test!(fn shutdown_smoke() {
         let mut a = a;
         let mut c = a.accept().unwrap();
         assert_eq!(c.read_to_end(), Ok(vec!()));
-        c.write([1]).unwrap();
+        c.write(&[1]).unwrap();
     });
 
     let mut s = connect(ip_str.as_slice(), port).unwrap();
     assert!(s.close_write().is_ok());
-    assert!(s.write([1]).is_err());
+    assert!(s.write(&[1]).is_err());
     assert_eq!(s.read_to_end(), Ok(vec!(1)));
 })
 
@@ -743,18 +743,18 @@ test!(fn close_readwrite_smoke() {
 
     // closing should prevent reads/writes
     s.close_write().unwrap();
-    assert!(s.write([0]).is_err());
+    assert!(s.write(&[0]).is_err());
     s.close_read().unwrap();
-    assert!(s.read(b).is_err());
+    assert!(s.read(&mut b).is_err());
 
     // closing should affect previous handles
-    assert!(s2.write([0]).is_err());
-    assert!(s2.read(b).is_err());
+    assert!(s2.write(&[0]).is_err());
+    assert!(s2.read(&mut b).is_err());
 
     // closing should affect new handles
     let mut s3 = s.clone();
-    assert!(s3.write([0]).is_err());
-    assert!(s3.read(b).is_err());
+    assert!(s3.write(&[0]).is_err());
+    assert!(s3.read(&mut b).is_err());
 
     // make sure these don't die
     let _ = s2.close_read();
@@ -780,7 +780,7 @@ test!(fn close_read_wakes_up() {
     let (tx, rx) = channel();
     spawn(proc() {
         let mut s2 = s2;
-        assert!(s2.read([0]).is_err());
+        assert!(s2.read(&mut [0]).is_err());
         tx.send(());
     });
     // this should wake up the child task
@@ -801,7 +801,7 @@ test!(fn read_timeouts() {
         rx.recv();
         let mut amt = 0;
         while amt < 100 * 128 * 1024 {
-            match s.read([0, ..128 * 1024]) {
+            match s.read(&mut [0, ..128 * 1024]) {
                 Ok(n) => { amt += n; }
                 Err(e) => panic!("{}", e),
             }
@@ -811,12 +811,12 @@ test!(fn read_timeouts() {
 
     let mut s = a.accept().unwrap();
     s.set_read_timeout(Some(Duration::milliseconds(20)));
-    assert_eq!(s.uv_read([0]).err().unwrap().code(), uvll::ECANCELED);
-    assert_eq!(s.uv_read([0]).err().unwrap().code(), uvll::ECANCELED);
+    assert_eq!(s.uv_read(&mut [0]).err().unwrap().code(), uvll::ECANCELED);
+    assert_eq!(s.uv_read(&mut [0]).err().unwrap().code(), uvll::ECANCELED);
 
     tx.send(());
     for _ in range(0i, 100) {
-        assert!(s.write([0, ..128 * 1024]).is_ok());
+        assert!(s.write(&[0, ..128 * 1024]).is_ok());
     }
 })
 
@@ -829,7 +829,7 @@ test!(fn timeout_concurrent_read() {
     spawn(proc() {
         let mut s = connect(ip_str.as_slice(), port).unwrap();
         rx.recv();
-        assert_eq!(s.write([0]), Ok(()));
+        assert_eq!(s.write(&[0]), Ok(()));
         let _ = rx.recv_opt();
     });
 
@@ -838,12 +838,12 @@ test!(fn timeout_concurrent_read() {
     let (tx2, rx2) = channel();
     spawn(proc() {
         let mut s2 = s2;
-        assert_eq!(s2.read([0]), Ok(1));
+        assert_eq!(s2.read(&mut [0]), Ok(1));
         tx2.send(());
     });
 
     s.set_read_timeout(Some(Duration::milliseconds(20)));
-    assert_eq!(s.uv_read([0]).err().unwrap().code(), uvll::ECANCELED);
+    assert_eq!(s.uv_read(&mut [0]).err().unwrap().code(), uvll::ECANCELED);
     tx.send(());
 
     rx2.recv();
